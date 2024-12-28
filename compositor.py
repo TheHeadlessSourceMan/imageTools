@@ -3,6 +3,7 @@
 """
 Implementation of photoshop/gimp blend modes in python.
 """
+import typing
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
@@ -10,10 +11,12 @@ try:
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-from PIL import Image, ImageChops, ImageEnhance
-from .helper_routines import *
-from .resizing import *
-from .colorSpaces import hsv2rgbArray,rgb2hsvArray
+from PIL import Image,ImageChops,ImageEnhance
+#from .helper_routines import set
+from .resizing import extendImageCanvas,paste
+from .colorSpaces import (
+    hsv2rgbArray,rgb2hsvArray,rgb2cmykArray,cmyk2rgbArray)
+from .imageRepr import maxMode,setAlpha
 
 
 def adjustOpacity(image,amount:float=1.0):
@@ -25,7 +28,8 @@ def adjustOpacity(image,amount:float=1.0):
 
     returns: adjusted image
 
-    IMPORTANT: the image bits may be altered.  To prevent this, set image.immutable=True
+    IMPORTANT: the image bits may be altered.
+    To prevent this, set image.immutable=True
     """
     if image is None or amount==1.0:
         return image
@@ -39,9 +43,13 @@ def adjustOpacity(image,amount:float=1.0):
 
 def _blendArray(front,back,fn,opacity:float=1.0):
     """
-    :param fn: represents the B function from from the adobe blend modes documentation.
-        It takes two parameters, Cb - the background pixels, and Cs - the source pixels
-        The documentation originally appeared http://www.adobe.com/devnet/pdf/pdfs/blend_modes.pdf
+    :param fn: represents the B function from from the adobe blend modes
+        documentation.
+        It takes two parameters:
+            Cb - the background pixels
+            Cs - the source pixels
+        The documentation originally appeared:
+        http://www.adobe.com/devnet/pdf/pdfs/blend_modes.pdf
         Copy included in source. (TODO: remove for copyright reasons?)
     :param opacity: blend mode opacity
 
@@ -65,8 +73,9 @@ def _blendArray(front,back,fn,opacity:float=1.0):
     front=np.asarray(front)/shift
     back=np.asarray(back)/shift
     # calculate the alpha channel
-    comp_alpha=np.maximum(np.minimum(front[:, :, 3], back[:, :, 3])*opacity,shift)
-    new_alpha=front[:, :, 3] + (1.0 - front[:, :, 3])*comp_alpha
+    comp_alpha=np.maximum(np.minimum(
+        front[:,:,3],back[:,:,3])*opacity,shift)
+    new_alpha=front[:,:,3]+(1.0-front[:,:,3])*comp_alpha
     np.seterr(divide='ignore',invalid='ignore')
     alpha=comp_alpha/new_alpha
     alpha[alpha==np.NAN]=0.0
@@ -75,7 +84,8 @@ def _blendArray(front,back,fn,opacity:float=1.0):
     combined=np.clip(combined,0.0,255.0)
     # clean up and reassemble
     #ratio_rs =
-    final=np.reshape(combined,[combined.shape[0],combined.shape[1],combined.shape[2]])
+    final=np.reshape(combined,
+        [combined.shape[0],combined.shape[1],combined.shape[2]])
     #final = combined * ratio_rs + front[:, :, :3] * (1.0 - ratio_rs)
     if useOpacity:
         final=np.dstack((final,alpha))
@@ -87,9 +97,15 @@ def _blendArray(front,back,fn,opacity:float=1.0):
     return final
 
 
-def generalBlend(topImage,mathStr,botImage,opacity=1.0,position=(0,0),resize=True):
+def generalBlend(
+    topImage,
+    mathStr:str,
+    botImage,
+    opacity:float=1.0,
+    position:typing.Tuple[float,float]=(0,0),
+    resize:bool=True):
     """
-    mathstr -
+    mathStr -
         operators:
             basic math symbols ()*/%-+&|
             comparison operators == <= >= && || !=
@@ -114,7 +130,7 @@ def generalBlend(topImage,mathStr,botImage,opacity=1.0,position=(0,0),resize=Tru
             A=1-topV ... extract inverted black levels to alpha channel
             RGBA=topRGB/bottomRGB,1-topV ... use commas to specify different
                 operations for different channels
-    """
+    """ # noqa: E501 # pylint: disable=line-too-long
     shift=255.0
     mathStr=mathStr.replace('\n','').replace(' ','').replace('\t','')
     resultForm,equation=mathStr.split('=',1)
@@ -184,7 +200,7 @@ def generalBlend(topImage,mathStr,botImage,opacity=1.0,position=(0,0),resize=Tru
     equation='('+(''.join(equation))+')'
     # run the operation and join the results with dstack()
     final=None
-    for channelSet in eval(equation):
+    for channelSet in eval(equation): # pylint: disable=eval-used
         if final is None:
             final=channelSet
         else:
@@ -193,7 +209,7 @@ def generalBlend(topImage,mathStr,botImage,opacity=1.0,position=(0,0),resize=Tru
     if resultForm=='HSV':
         final=hsv2rgbArray(final)
     elif resultForm=='CMYK':
-        final=cmyk_to_rgb(final)
+        final=cmyk2rgbArray(final)
     final=final*shift
     # if alpha channel was missing, add one
     if len(final[0][1])<4:
@@ -225,9 +241,12 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
 
     image - the image to be pasted on top (if None, returns overImage)
     blendMode - the mode to use when combining images
-    overImage - the image will be pasted over the top of this image (if None, returns image)
-    position - the position to place the new image, relative to overImage (can be negative)
-    resize - allow the resulting image to be resized if overImage extends beyond its bounds
+    overImage - the image will be pasted over the top of this image
+        (if None, returns image)
+    position - the position to place the new image, relative to overImage
+        (can be negative)
+    resize - allow the resulting image to be resized if overImage
+        extends beyond its bounds
 
     Most comprehensive list:
         https://docs.krita.org/Blending_Modes
@@ -238,7 +257,8 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
     For another python implementation (not all supported):
         https://github.com/flrs/blend_modes/blob/master/blend_modes/blend_modes.py#L138
 
-    IMPORTANT: the image bits may be altered.  To prevent this, set image.immutable=True
+    IMPORTANT: the image bits may be altered.
+    To prevent this, set image.immutable=True
     """
     def _normal(bottom,top):
         return top
@@ -247,7 +267,8 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
     def _screen(bottom,top):
         return bottom+top-(bottom*top)
     def _dissolve(bottom,top):
-        # TODO: there is a bug.  instead of randomly merging pixels, it randomly merges color values
+        # TODO: there is a bug.  instead of randomly merging pixels,
+        # it randomly merges color values
         rand=np.random.random(bottom.shape)
         return np.where(rand>0.5,bottom,top)
     def _darken(bottom,top):
@@ -265,17 +286,21 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
     def _linearDodge(bottom,top):
         return top+bottom
     def _overlay(bottom,top):
-        # TODO: the colors saturation comes out a little higher than gimp, but close
+        # TODO: the colors saturation comes out
+        # a little higher than gimp, but close
         return np.where(top<=0.5,2.0*bottom*top,1.0-2.0*(1.0-bottom)*(1.0-top))
     def _hardOverlay(bottom,top):
         # this is a krita thing
-        return np.where(bottom>0.5,_multiply(top,2.0*bottom),_divide(top,2.0*bottom-1.0))
+        return np.where(
+            bottom>0.5,_multiply(top,2.0*bottom),_divide(top,2.0*bottom-1.0))
     def _hardLight(bottom,top):
-        return np.where(bottom<=0.5,_multiply(top,2.0*bottom),_screen(top,2.0*bottom-1.0))
+        return np.where(
+            bottom<=0.5,_multiply(top,2.0*bottom),_screen(top,2.0*bottom-1.0))
     def _vividLight(bottom,top):
         return np.where(top>0.5,_colorDodge(bottom,top),_colorBurn(bottom,top))
     def _linearLight(bottom,top):
-        return np.where(top>0.5,_linearDodge(bottom,top),_linearBurn(bottom,top))
+        return np.where(
+            top>0.5,_linearDodge(bottom,top),_linearBurn(bottom,top))
     def _pinLight(bottom,top):
         # NOTE: I think this is right...?
         return np.where(bottom>0.5,_darken(bottom,top),_lighten(bottom,top))
@@ -310,7 +335,8 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
     def _grainMerge(bottom,top):
         return bottom+top-0.5
     def _divide(bottom,top):
-        # NOTE:  You'd think the first algo would be correct, but gimp has it the opposite way
+        # NOTE:  You'd think the first algo would be correct,
+        # but gimp has it the opposite way
         #return bottom/top
         return top/bottom
     def _hue(bottom,top):
@@ -320,7 +346,8 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
     def _saturation(bottom,top):
         bottomH=rgb2hsvArray(bottom)
         topH=rgb2hsvArray(top)
-        return hsv2rgbArray(np.dstack((topH[:,:,0],bottomH[:,:,1],topH[:,:,2])))
+        return hsv2rgbArray(np.dstack(
+            (topH[:,:,0],bottomH[:,:,1],topH[:,:,2])))
     def _value(bottom,top):
         bottomH=rgb2hsvArray(bottom)
         topH=rgb2hsvArray(top)
@@ -421,29 +448,46 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
     return ret
 
 
-def composite(image,overImage,opacity=1.0,blendMode='normal',mask=None,position=(0,0),resize=True):
+def composite(
+    image,
+    overImage,
+    opacity=1.0,
+    blendMode='normal',
+    mask=None,
+    position=(0,0),
+    resize=True):
     """
     A full-fledged image compositor
 
     image - the image to be pasted on top (if None, returns overImage)
-    overImage - the image will be pasted over the top of this image (if None, returns image)
+    overImage - the image will be pasted over the top of this image
+        (if None, returns image)
     opacity - adjust the opacity of the overImage before blending
     blendMode - the mode to use when combining images
-    position - the position to place the new image, relative to overImage (can be negative)
-    resize - allow the resulting image to be resized if overImage extends beyond its bounds
+    position - the position to place the new image, relative to overImage
+        (can be negative)
+    resize - allow the resulting image to be resized if overImage
+        extends beyond its bounds
 
     returns: a composited image, or None if both image and overImage are None
 
-    IMPORTANT: the image bits may be altered.  To prevent this, set image.immutable=True
+    IMPORTANT: the image bits may be altered.
+    To prevent this, set image.immutable=True
     """
     if image is None or opacity<=0.0:
         return overImage
     if overImage is None:
         if isinstance(image,np.ndarray):
-            size=(int(image.shape[0]+position[0]),int(image.shape[1]+position[1]))
+            size=(
+                int(image.shape[0]+position[0]),
+                int(image.shape[1]+position[1]))
         else:
-            size=(int(image.width+position[0]),int(image.height+position[1]))
-        if (opacity==1.0 and mask is None and position==(0,0)) or size[0]<=0 or size[1]<=0:
+            size=(
+                int(image.width+position[0]),
+                int(image.height+position[1]))
+        if (opacity==1.0 and mask is None and position==(0,0)) \
+            or size[0]<=0 \
+            or size[1]<=0:
             # there is nothing to change
             return image
         # create a blank background
@@ -461,9 +505,9 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         img1=None
         img2=None
@@ -475,7 +519,7 @@ def cmdline(args):
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--opacity':
                     opacity=float(arg[1])
                 elif arg[0]=='--blendMode':
@@ -489,7 +533,9 @@ def cmdline(args):
                     if custom is None:
                         final=composite(img1,img2,opacity,blendMode,mask)
                     else:
-                        final=generalBlend(img1,custom,img2,opacity,position=(0,0),resize=True)
+                        final=generalBlend(
+                            img1,custom,img2,
+                            opacity,position=(0,0),resize=True)
                     print('Saving')
                     final.save(arg[1])
                     print('Done')
@@ -498,7 +544,9 @@ def cmdline(args):
                     if custom is None:
                         final=composite(img1,img2,opacity,blendMode,mask)
                     else:
-                        final=generalBlend(img1,custom,img2,opacity,position=(0,0),resize=True)
+                        final=generalBlend(
+                            img1,custom,img2,
+                            opacity,position=(0,0),resize=True)
                     print('Showing')
                     final.show()
                     while True:
@@ -514,7 +562,7 @@ def cmdline(args):
                 else:
                     img2=Image.open(arg)
                     print('Loaded image B: '+arg)
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  compositor.py image1 image2 [options]')
         print('Options:')

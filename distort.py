@@ -72,7 +72,7 @@ def pinchPull(img,amount,location=None,radius=None):
 def bruteDisplaceImage(img,displacementMap,distance=10,angle=45):
     """
     this version is much faster even with stupid loops, but the problem
-    is it leads to pixelization because it's simply moving from
+    is it leads to pixelation because it's simply moving from
     point a to point b
     """
     angle=math.radians(angle)
@@ -105,7 +105,7 @@ def displaceImage(
     NOTE: If displacementMap is not grayscale, convert it
         using the default (BT.709)
 
-    NOTE: If displacementMap is smaller than img, then everthing
+    NOTE: If displacementMap is smaller than img, then everything
         out of bounds is not displaced!
     """
     angle=math.radians(angle)
@@ -163,7 +163,7 @@ def warpRotate(img,theta):
 
     NOTE: only row 0 is used
 
-    TODO: need to resize img larger to encoumpass rotated bounds
+    TODO: need to resize img larger to encompass rotated bounds
     """
     originalSize=getSize(img)
     rot=scipy.ndimage.interpolation.rotate(img,theta)
@@ -181,20 +181,20 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 else:
                     print(('ERR: unknown argument "'+arg[0]+'"'))
             else:
                 print(('ERR: unknown argument "'+arg+'"'))
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  distort.py [options]')
         print('Options:')

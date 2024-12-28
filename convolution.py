@@ -18,7 +18,7 @@ from helper_routines import highlights
 from .imageRepr import numpyArray
 
 
-CONVOLVE_MATTRICES={
+CONVOLVE_MATRICES={
     'emboss':[[-2,-1, 0],
               [-1, 1, 1],
               [ 0, 1, 2]],
@@ -111,7 +111,7 @@ def convolve(
     """
     run a given convolution matrix
 
-    :param matrix: can be a numerical matrix or an entry in CONVOLVE_MATTRICES
+    :param matrix: can be a numerical matrix or an entry in CONVOLVE_MATRICES
     """
     if isinstance(matrix,str):
         if matrix.find(',')>0:
@@ -122,7 +122,7 @@ def convolve(
                 [float(col) for col in row.split(',')]
                 for row in matrix[1:-1].replace('],','').split('[')]
         else:
-            matrix=CONVOLVE_MATTRICES[matrix]
+            matrix=CONVOLVE_MATRICES[matrix]
     size=len(matrix)
     border=size/2-1
     #img=imageBorder(img,border,edge)
@@ -145,9 +145,9 @@ def cmdline(args:typing.Iterable[str])->int:
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         from .imageRepr import pilImage
         img=None
@@ -155,7 +155,7 @@ def cmdline(args:typing.Iterable[str])->int:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--save':
                     pilImage(img).save(arg[1])
                 elif arg[0]=='--show':
@@ -170,7 +170,7 @@ def cmdline(args:typing.Iterable[str])->int:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 img=arg
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  convolution.py image.jpg [options]')
         print('Options:')

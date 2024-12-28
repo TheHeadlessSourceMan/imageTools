@@ -1,23 +1,30 @@
 #!/usr/bin/env
 # -*- coding: utf-8 -*-
 """
-A colleciton of routines to work with selection in bitmaps and vector paths
+A collection of routines to work with selection in bitmaps and vector paths
 """
 
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-import scipy.ndimage
-from PIL import Image, ImageDraw
-from .colors import *
-from .helper_routines import *
+import scipy.ndimage # type: ignore
+from PIL import Image,ImageDraw
+
+from colorSpaces import (
+    changeColorspace)
+from resizing import imageBorder
+from .colors import (
+    matchColorToImage,pickColor,strToColor,colorToStr)
+from .helper_routines import (
+    numpyArray,clampImage,isFloat,pilImage,defaultLoader)
 
 
-def selectByColor(img,color,tolerance=0,soften=10,smartSoften=True,colorspace='RGB'):
+def selectByColor(
+    img,color,tolerance=0,soften=10,smartSoften=True,colorspace='RGB'):
     """
     Select all pixels of a given color
 
@@ -29,15 +36,19 @@ def selectByColor(img,color,tolerance=0,soften=10,smartSoften=True,colorspace='R
         an array of any of these
     :param tolerance: how close the selection must be
     :param soften: apply a soften radius to the edges of the selection
-    :param smartSoften: multiply the soften radius by how near the pixel is to the selection color
-    :param colorspace: change the given img (assumed to be RGB) into another corlorspace before matching
+    :param smartSoften: multiply the soften radius by how near the pixel
+        is to the selection color
+    :param colorspace: change the given img (assumed to be RGB)
+        into another corlorspace before matching
 
-    :returns: black and white image in a numpy array (usable as a selection or a mask)
+    :returns: black and white image in a numpy array
+        (usable as a selection or a mask)
     """
     from . import colorSpaces
     img=numpyArray(img)
     img=colorSpaces.changeColorspace(img,colorspace)
-    if (isinstance(color,list) and isinstance(color[0],list)) or (isinstance(color,np.ndarray) and len(color.shape)>1):
+    if (isinstance(color,list) and isinstance(color[0],list)) \
+        or (isinstance(color,np.ndarray) and len(color.shape)>1):
         # there are multiple colors, so select them all one at a time
         # TODO: this could possibly be made faster with array operations??
         ret=None
@@ -48,56 +59,71 @@ def selectByColor(img,color,tolerance=0,soften=10,smartSoften=True,colorspace='R
                 ret=ret+selectByColor(img,c,tolerance,soften,smartSoften)
         ret=clampImage(ret)
     elif isinstance(color,tuple):
-        # color range - select all colors "between" these two in the given color space
+        # color range - select all colors "between" these two
+        # in the given color space
         color=(matchColorToImage(color[0],img),matchColorToImage(color[1],img))
         matches=np.logical_and(img>=color[0],img<=color[1])
         ret=np.where(matches.all(axis=2),1.0,0.0)
     else:
-        # a single color (or a series of colors that have been averaged down to one)
+        # a single color (or a series of colors that have been
+        # averaged down to one)
         color=matchColorToImage(color,img)
         if isFloat(color):
-            imax=1.0
-            imin=0.0
+            iMax=1.0
+            iMin=0.0
         else:
-            imax=255
-            imin=0
+            iMax=255
+            iMin=0
         numColors=img.shape[-1]
         avgDelta=np.sum(np.abs(img[:,:]-color),axis=-1)/numColors
-        ret=np.where(avgDelta<=tolerance,imax,imin)
+        ret=np.where(avgDelta<=tolerance,iMax,iMin)
         if soften>0:
             ret=gaussianBlur(ret,soften)
             if smartSoften:
-                ret=np.minimum(imax,ret/avgDelta)
+                ret=np.minimum(iMax,ret/avgDelta)
     return ret
 
 
-def selectByPoint(img,location,tolerance=0,soften=10,smartSoften=True,colorspace='RGB',pickMode='average'):
+def selectByPoint(img,
+    location,
+    tolerance=0,
+    soften=10,
+    smartSoften=True,
+    colorspace='RGB',
+    pickMode='average'):
     """
     Works like the "magic wand" selection tool.
-    It is different than selectByColor(img,pickColor(img,location)) in that only a contiguious
-        region is selected
+    It is different than selectByColor(img,pickColor(img,location))
+        in that only a contiguous region is selected
 
     :param img: can be a pil image, numpy array, etc
     :param location: can be a single point or an [x,y,w,h]
     :param tolerance: how close the selection must be
     :param soften: apply a soften radius to the edges of the selection
-    :param smartSoften: multiply the soften radius by how near the pixel is to the selection color
-    :param colorspace: change the given img (assumed to be RGB) into another corlorspace before matching
+    :param smartSoften: multiply the soften radius by how near the pixel
+        is to the selection color
+    :param colorspace: change the given img (assumed to be RGB) into
+        another corlorspace before matching
         TODO: implement this!
 
-    :returns: black and white image in a numpy array (usable as a selection or a mask)
+    :returns: black and white image in a numpy array
+        (usable as a selection or a mask)
     """
     img=numpyArray(img)
     img=changeColorspace(img)
     # selectByColor, but the
-    selection=selectByColor(img,pickColor(img,location,pickMode),tolerance,soften,smartSoften,colorspace=imageMode(img))
+    selection=selectByColor(
+        img,pickColor(img,location,pickMode),
+        tolerance,soften,smartSoften,colorspace=imageMode(img))
     # now identify islands from selection
     labels,_=scipy.ndimage.label(selection)
     # grab only the named islands within the original location
     if len(location)<4:
         labelsInSel=[labels[location[0],location[1]]]
     else:
-        labelsInSel=np.unique(labels[location[0]:location[0]+location[2]+1,location[0]:location[0]+location[2]+1])
+        labelsInSel=np.unique(
+            labels[location[0]:location[0]+location[2]+1,
+                location[0]:location[0]+location[2]+1])
     # only keep portions of selection within our islands
     selection=np.where(np.isin(labels,labelsInSel),selection,0.0)
     return selection
@@ -188,7 +214,8 @@ def morphology(func,img,amount,edge='clamp',shape=None):
     elif func=='close':
         img=scipy.ndimage.grey_closing(img,(amount),shape,mode=mode,cval=cval)
     elif func in ('gradient','outline'):
-        img=scipy.ndimage.morphological_gradient(img,(amount),shape,mode=mode,cval=cval)
+        img=scipy.ndimage.morphological_gradient(
+            img,(amount),shape,mode=mode,cval=cval)
     elif func in ('tophat','whitehat'):
         img=scipy.ndimage.white_tophat(img,(amount),shape,mode=mode,cval=cval)
     elif func=='blackhat':
@@ -201,7 +228,7 @@ def selectionToPath(img,midpoint=0.5):
     convert a black and white selection (or mask) into a path
 
     :param img: a pil image, numpy array, etc
-    :param midpoint: for grayscale images, this is the cuttoff point for yes/no
+    :param midpoint: for grayscale images, this is the cutoff point for yes/no
 
     :return: a closed polygon [(x,y)]
 
@@ -234,7 +261,12 @@ def pathToSelection(path,filled=True,outlineWidth=0):
     return renderPath(path,None,1,borderColor,backgroundColor)
 
 
-def renderPath(path,intoImg=None,borderSize=1,borderColor=None,backgroundColor=None):
+def renderPath(
+    path,
+    intoImg=None,
+    borderSize=1,
+    borderColor=None,
+    backgroundColor=None):
     """
     render a path into an image
 
@@ -261,7 +293,8 @@ def renderPath(path,intoImg=None,borderSize=1,borderColor=None,backgroundColor=N
             borderColor=(255,0,0,128)
         if backgroundColor is None:
             backgroundColor=(255,0,0,128)
-    ImageDraw.Draw(intoImg).polygon(path,outline=borderColor,fill=backgroundColor)
+    ImageDraw.Draw(intoImg).polygon(
+        path,outline=borderColor,fill=backgroundColor)
     return intoImg
 
 
@@ -271,9 +304,9 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         selection=None
         selectionTolerance=0.10
@@ -285,13 +318,17 @@ def cmdline(args):
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--selectionTolerance':
                     selectionTolerance=float(arg[1])
                 elif arg[0]=='--selectByColor':
-                    selection=selectByColor(img,arg[1],selectionTolerance,soften,smartSoften)
+                    selection=selectByColor(img,
+                        arg[1],selectionTolerance,soften,smartSoften)
                 elif arg[0]=='--selectByPoint':
-                    selection=selectByPoint(img,[int(x) for x in arg[1].split(',')],selectionTolerance,soften,smartSoften,pickMode=pickMode)
+                    selection=selectByPoint(img,
+                        [int(x) for x in arg[1].split(',')],
+                        selectionTolerance,
+                        soften,smartSoften,pickMode=pickMode)
                 elif arg[0]=='--pickMode':
                     pickMode=arg[1]
                 elif arg[0]=='--soften':
@@ -299,39 +336,41 @@ def cmdline(args):
                 elif arg[0]=='--smartSoften':
                     smartSoften=arg[1][0] in ['t','T','y','Y','1']
                 elif arg[0]=='--pickColor':
-                    color=pickColor(img,[int(x) for x in arg[1].split(',')],pickMode)
+                    color=pickColor(
+                        img,[int(x) for x in arg[1].split(',')],
+                        pickMode)
                     print((colorToStr(color)))
                 elif arg[0]=='--showSelection':
                     pilImage(selection).show()
                 elif arg[0]=='--showPath':
                     points=selectionToPath(selection)
-                    iout=img.copy()
-                    iout=renderPath(points,iout)
-                    pilImage(iout).show()
+                    imageOut=img.copy()
+                    imageOut=renderPath(points,imageOut)
+                    pilImage(imageOut).show()
                 elif arg[0] in ['--erode','--dilate','--open','--close']:
                     selection=morphology(arg[0][2:],selection,float(arg[1]))
                 else:
                     print(('ERR: unknown argument "'+arg[0]+'"'))
             else:
                 img=defaultLoader(arg)
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  selectionsAndPaths.py image.jpg [options]')
         print('Options:')
-        print('   --selectionTolerance=0.5 . set tolerance for subsequent selection operations')
+        print('   --selectionTolerance=0.5 . set tolerance for subsequent selection operations') # noqa: E501 # pylint: disable=line-too-long
         print('   --selectByColor=RGB ...... select by a given color')
         print('   --soften=r ............... radius to soften the selection')
-        print('   --smartSoften=true ....... modify softenss based on similarity')
-        print('   --pickMode=mode .......... when picking an area "average","all",or "range"')
+        print('   --smartSoften=true ....... modify softness based on similarity') # noqa: E501 # pylint: disable=line-too-long
+        print('   --pickMode=mode .......... when picking an area "average","all",or "range"') # noqa: E501 # pylint: disable=line-too-long
         print('   --pickColor=x,y[,w,h] .... pick colors')
-        print('   --showSelection .......... show only the selected portion of the image')
-        print('   --showPath ............... show selection as a path on top of the original image')
+        print('   --showSelection .......... show only the selected portion of the image') # noqa: E501 # pylint: disable=line-too-long
+        print('   --showPath ............... show selection as a path on top of the original image') # noqa: E501 # pylint: disable=line-too-long
         print('   --erode=amt .............. erode the selection')
         print('   --dilate=amt ............. dilate the selection')
         print('   --open=amt ............... "open" the selection')
         print('   --close=amt .............. "close" the selection')
         print('Notes:')
-        print('   * All filenames can also take file:// http:// https:// ftp:// urls')
+        print('   * All filenames can also take file:// http:// https:// ftp:// urls') # noqa: E501 # pylint: disable=line-too-long
 
 
 if __name__=='__main__':

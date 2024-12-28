@@ -7,20 +7,21 @@ from math import log
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
 from PIL import Image
-from .helper_routines import *
-from .selectionsAndPaths import strToColor
-from .colorSpaces import *
+from .helper_routines import numpyArray,pilImage
+from .selectionsAndPaths import strToColor,clampImage
+from .colorSpaces import hsv2rgbArray,rgb2hsvArray
 
 
 notes="""
 TODO: implement VSCO terminology
 
-    auto/normalization (get things into a baseline that filters can operate upon)
+    auto/normalization (get things into a baseline
+    that filters can operate upon)
 
     # hue
 
@@ -39,7 +40,7 @@ TODO: implement VSCO terminology
 
     # other
     clarity -- an unsharp mask??
-    Vingette
+    Vignette
     Grain
     skin tone
 
@@ -158,17 +159,21 @@ def toneSplit(image,atPoints=None,absolute=False):
         b=0
         m=1
     for pointRange in _pointsToRanges(atPoints):
-        ret.append(np.logical_and(image>=pointRange[0]*m+b,image<pointRange[1]*m+b),atPoints)
+        ret.append(np.logical_and(
+            image>=pointRange[0]*m+b,image<pointRange[1]*m+b),
+            atPoints)
     return ret
 
 
 def toneCombine(image,tones,toneAmounts=1.0):
     """
-    This is essentially just a compositor that re-layers any number of tones on top of an image
+    This is essentially just a compositor that re-layers any number
+    of tones on top of an image
 
     :param image: The underlying image.
     :param tones: An array of images representing individual tones
-    :param toneAmounts: A single value for all or an array representing individual tone amounts
+    :param toneAmounts: A single value for all or an array
+        representing individual tone amounts
 
     :return: the combined image
     """
@@ -221,7 +226,7 @@ def photoFilter(image,photoFilter,density=1.0,preserveLuminosity=True):
     Apply a standard Wratten photo filter
 
     :param image: the image to apply the filter to
-    :param photoFilter: can be a transmittence curve or a wratten number
+    :param photoFilter: can be a transmittance curve or a wratten number
     :param density: is an amount value
     :param preserveLuminosity: keep the luminosity of the image the same
 
@@ -236,14 +241,18 @@ def photoFilter(image,photoFilter,density=1.0,preserveLuminosity=True):
 
 def posterize(image):
     """
-    Posterize an image, that is, more or less to clamp each color to the nearest multiple of 1/4
+    Posterize an image, that is, more or less to clamp each color
+    to the nearest multiple of 1/4
 
     :param image: the image to posterize
 
     :return: the converted image
     """
     image=numpyArray(image)
-    return np.where(image<=0.25,0.20,np.where(image<=0.5,0.40,np.where(image<=0.75,0.60,0.80)))
+    return np.where(
+        image<=0.25,
+        0.20,
+        np.where(image<=0.5,0.40,np.where(image<=0.75,0.60,0.80)))
 
 
 def solarize(image):
@@ -326,7 +335,8 @@ def equalize(image,amount=1.0,colorChannels=False):
 
     :return: the adjusted image
 
-    NOTE: if you want to equalize a single channel, separate it out and it in as img
+    NOTE: if you want to equalize a single channel,
+    separate it out and it in as img
 
     See also:
         http://en.wikipedia.org/wiki/Histogram_equalization
@@ -385,38 +395,55 @@ def colorize(image,color,keepSaturation=0.0):
     return image
 
 
-def levels(image,shadows=0,midtones=0.5,higlights=1,clampBlack=0,clampWhite=1):
+def levels(
+    image,
+    shadows=0,
+    midtones=0.5,
+    highlights=1,
+    clampBlack=0,
+    clampWhite=1):
     """
     Perform a levels color adjustment on the given image
 
     :param image: the image to apply the filter to
     :param shadows: new level to shift shadows to (higher values=more darks)
     :param midtones: new level to shift the mid-point to
-    :param higlights: new level to shift highlights to (lower values=more darks)
+    :param highlights: new level to shift highlights to
+        (lower values=more darks)
     :param clampBlack: clamp the black pixels to this value
     :param clampBlack: clamp the white pixels to this value
 
     :return: adjusted image
     """
-    return curves(image,[[shadows,0],[midtones,0.5],[higlights,1]],clampBlack,clampWhite)
+    return curves(
+        image,
+        [[shadows,0],[midtones,0.5],[highlights,1]],
+        clampBlack,clampWhite)
 
 
-def curves(image,controlPoints,clampBlack=0,clampWhite=1,degree=None,extrapolate=True):
+def curves(
+    image,
+    controlPoints,
+    clampBlack=0,
+    clampWhite=1,
+    degree=None,
+    extrapolate=True):
     """
     Perform a curves adjustment on an image
 
-    :param image: evaluate the curve at these points can be pil image or numpy array
+    :param image: evaluate the curve at these points
+        can be pil image or numpy array
     :param controlPoints: set of [x,y] points that define the mapping
     :param clampBlack: clamp the black pixels to this value
     :param clampBlack: clamp the white pixels to this value
     :param degree: polynomial degree (if omitted, make it the same as the
         number of control points)
     :param extrapolate: go beyond the defined area of the curve to get values
-        (oterwise returns NaN for outside values)
+        (overwise returns NaN for outside values)
 
     :return: the adjusted image
     """
-    import scipy.interpolate
+    import scipy.interpolate # type: ignore
     img=numpyArray(image)
     count=len(controlPoints)
     if degree is None:
@@ -426,10 +453,10 @@ def curves(image,controlPoints,clampBlack=0,clampWhite=1,degree=None,extrapolate
     knots=np.clip(np.arange(count+degree+1)-degree,0,count-degree)
     spline=scipy.interpolate.BSpline(knots,controlPoints,degree)
     if len(img.shape)<3:
-        # for some reason it keeps the original point, which we need to strip off
+        # for some reason it keeps the original point, which we strip off
         resultPoints=spline(img[:,:],extrapolate=extrapolate)[:,:,0]
     else:
-        # for some reason it keeps the original point, which we need to strip off
+        # for some reason it keeps the original point, which we strip off
         resultPoints=spline(img[:,:,:],extrapolate=extrapolate)[:,:,:,0]
     resultPoints=clampImage(resultPoints,clampBlack,clampWhite)
     return pilImage(resultPoints)
@@ -441,9 +468,9 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         currentChannel='RGB'
         image=None
@@ -451,7 +478,7 @@ def cmdline(args):
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--channel':
                     currentChannel=arg[1]
                 elif arg[0]=='--show':
@@ -475,7 +502,8 @@ def cmdline(args):
                     if len(aa)>1:
                         density=float(aa[1])
                         if len(aa)>2:
-                            preserveLuminosity=aa[2][0] in ['Y','y','T','t','1']
+                            preserveLuminosity=\
+                                aa[2][0] in ('Y','y','T','t','1')
                     image=photoFilter(image,name,density,preserveLuminosity)
                 elif arg[0]=='--colorize':
                     keepSat=True
@@ -499,13 +527,13 @@ def cmdline(args):
                     image=levels(image,*params)
                 elif arg[0]=='--curves':
                     pts=arg[1][0:-1].replace('[','').split(']')
-                    points=[[float(xy) for xy in pt.split(',')[-2:]] for pt in pts]
+                    points=[[float(xy) for xy in pt.split(',')[-2:]] for pt in pts] # noqa: E501 # pylint: disable=line-too-long
                     image=curves(image,points)
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 image=Image.open(arg)
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  colorCorrect.py input.jpg [options]')
         print('Options:')
@@ -516,14 +544,14 @@ def cmdline(args):
         print('         temperature (in kelvin)')
         print('   --exposure=amount ............. adjust image exposure')
         print('   --gamma=gamma ................. adjust image gamma value')
-        print('   --photoFilter=name,density,preserveLuminosity .... apply a photograhy filter')
+        print('   --photoFilter=name,density,preserveLuminosity .... apply a photography filter') # noqa: E501 # pylint: disable=line-too-long
         print('   --colorize=color[,keepSat] .... colorize the image,')
-        print('          optionally keeping some amount of the original saturation')
-        print('   --equalize[=amount[,colorCh]] . equalize the image\'s histogram')
+        print('          optionally keeping some amount of the original saturation') # noqa: E501 # pylint: disable=line-too-long
+        print('   --equalize[=amount[,colorCh]] . equalize the image\'s histogram') # noqa: E501 # pylint: disable=line-too-long
         print('         (colorCh=T/F to equalize colors as well)')
-        print('   --levels=low,mid,high,min,max . perfom a levels color adjustment')
+        print('   --levels=low,mid,high,min,max . perform a levels color adjustment') # noqa: E501 # pylint: disable=line-too-long
         print('         (all values 0..1)')
-        print('   --curves=[x,y][x,y][...] ...... perfom a curves color adjustment')
+        print('   --curves=[x,y][x,y][...] ...... perform a curves color adjustment') # noqa: E501 # pylint: disable=line-too-long
         print('         using the given points (all values 0..1)')
 
 

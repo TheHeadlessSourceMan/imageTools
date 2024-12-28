@@ -24,7 +24,7 @@ class Hole(Selection):
     @property
     def borderLoop(self):
         """
-        note that loop is in order and contiguious
+        note that loop is in order and contiguous
         """
         return self.points
 
@@ -38,7 +38,7 @@ class Hole(Selection):
             return self.pointAngles(90)
         return self.pointAngles(90)
 
-    def pointAngles(self,a=0):
+    def pointAngles(self,aPlus=0):
         """
         :param aPlus: adds this value to angles.
             if 0, returns angles in the drawing direction
@@ -52,18 +52,20 @@ class Hole(Selection):
         mx=len(self.borderLoop)-1
         for i,point in enumerate(self.borderLoop):
             if i>0:
-                prev=self.borderLoop[i-1]
+                previousPoint=self.borderLoop[i-1]
                 if i>=mx:
-                    next=self.borderLoop[0]
+                    nextPoint=self.borderLoop[0]
                 else:
-                    next=self.borderLoop[i+1]
-                a2=np.atan2(point.x-next.x,point.y-next.x)
+                    nextPoint=self.borderLoop[i+1]
+                a2=np.atan2(point.x-nextPoint.x,point.y-nextPoint.x)
             else:
-                prev=self.borderLoop[mx]
-                next=self.borderLoop[1]
-                a1=np.atan2(prev.x-point.x,prev.y-point.y)
-                a2=np.atan2(point.x-next.x,point.y-next.x)
-            ret.append(((a1+a2)/2+v,point))
+                previousPoint=self.borderLoop[mx]
+                nextPoint=self.borderLoop[1]
+                a1=np.atan2(previousPoint.x-point.x,previousPoint.y-point.y)
+                a2=np.atan2(point.x-nextPoint.x,point.y-nextPoint.x)
+            ret.append((
+                (a1+a2)/2+v,
+                point))
             a1=a2 # move down one so we don't have to recalculate the next one
         return ret
 
@@ -105,7 +107,7 @@ class Hole(Selection):
         You can get the inside, outside, or both
         (default is inside only)
 
-        :param inside: get the distances inside the selecion
+        :param inside: get the distances inside the selection
         :param outside: get the distances outside the selection
         :param bounds: for outside distances, you probably need to set this to
             tell it how much outside area you want!
@@ -151,10 +153,10 @@ class Hole(Selection):
     def toNormalMap(self):
         """
         Get a normal map of this hole (values from 0..1 in each direction)
-        based upon distance to center where pixel at self.centroid is 
+        based upon distance to center where pixel at self.centroid is
         1 and pixels at self.boundingRadius are 0
 
-        The resulting image is rgb where r=x,g=y,b=z 
+        The resulting image is rgb where r=x,g=y,b=z
         and the size of self.boundingBox
         """
         bb=self.boundingBox
@@ -197,23 +199,27 @@ class Hole(Selection):
         returns [(x,y)] of all points inside
         """
         # Arrays containing the x- and y-coordinates of the polygon's vertices.
-        vertx=[point[0] for point in self.points]
-        verty=[point[1] for point in self.points]
+        xVertices=[point[0] for point in self.points]
+        yVertices=[point[1] for point in self.points]
         # Number of vertices in the polygon
-        nvert=len(self.points)
+        numVertices=len(self.points)
         # Points that are inside
         points_inside=[]
         # For every candidate position within the bounding box
         for idx,pos in enumerate(bounding_box_positions):
             # count the number of border crossings
-            testx,testy=(pos[0],pos[1])
+            testX,testY=(pos[0],pos[1])
             c=0
-            for i in range(0,nvert):
-                j=i-1 if i!=0 else nvert-1
-                if(
-                    ((verty[i]>testy)!=(verty[j]>testy)) and
-                    (testx<(vertx[j]-vertx[i])*(testy-verty[i])/\
-                    (verty[j]-verty[i])+vertx[i])
+            for i in range(0,numVertices):
+                j=i-1 if i!=0 else numVertices-1
+                if (
+                    ((yVertices[i]>testY)!=(yVertices[j]>testY)) \
+                    and (
+                        testX<\
+                        (xVertices[j]-xVertices[i])*(testY-yVertices[i])\
+                        /\
+                        (yVertices[j]-yVertices[i])\
+                        +xVertices[i])
                     ):
                     c += 1
             # If odd, that means that we are inside the polygon
@@ -356,20 +362,20 @@ def cmdline(args:typing.Iterable[str])->int:
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if len(args)<1:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  swissCheese.py [options]')
         print('Options:')

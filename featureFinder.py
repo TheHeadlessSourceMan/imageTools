@@ -18,9 +18,10 @@ try:
     has_opencv=True
 except ImportError:
     has_opencv=False
-from .selectionsAndPaths import *
+from PIL import Image,ImageDraw
+from .selectionsAndPaths import selectByColor
+from .helper_routines import numpyArray
 from . import resizing
-from . import imageRepr
 from . import colorSpaces
 
 
@@ -50,7 +51,7 @@ def selectHaar(image,cascadeXmlPath,asMask=True,roundSelection=False):
     try:
         items=haar.detectMultiScale(image,1.3,5)
     except cv2.error as e:
-        searchStr="!empty() in function 'cv::CascadeClassifier::detectMultiScale"
+        searchStr="!empty() in function 'cv::CascadeClassifier::detectMultiScale" # noqa: E501 # pylint: disable=line-too-long
         if str(e).find(searchStr)>=0:
             msg=f'XML cascade filter not found "{cascadeXmlPath}"'
             raise Exception(msg) from e

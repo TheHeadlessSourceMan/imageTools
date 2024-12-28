@@ -6,12 +6,12 @@ Pick, manage, and transform colors to/from html.
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-from colorTools import *
-from .imageRepr import *
+#from .colorTools import
+from .imageRepr import numpyArray,isFloat
 
 
 def strToColor(s,asFloat=True,defaultColor=None):
@@ -37,11 +37,13 @@ def strToColor(s,asFloat=True,defaultColor=None):
 
 def colorToStr(s,preferHex=True,alwaysHex=False,useNamed=False):
     """
-    :param s: the color to convert (If it is a string, it will be converted to a color,
-        then back.  Thus you can convert from one string format to another.)
+    :param s: the color to convert (If it is a string, it will be converted
+        to a color, then back.  Thus you can convert from one string
+        format to another.)
     :param preferHex: return hex over rgb() but NOT over rgba()
     :param alwaysHex: always returns a hex string over rgb() or even rgba()
-    :param useNamed: before anything else, check to see if there is a named color that matches
+    :param useNamed: before anything else, check to see if there is
+        a named color that matches
     """
     if not isinstance(s,Color):
         s=Color(s)
@@ -67,13 +69,17 @@ def pickColor(img,location,pickMode='average'):
         # if it's a single pixel, easy peasy
         ret=img[location[0],location[1]]
     else:
-        region=img[location[0]:location[0]+location[2]+1,location[0]:location[0]+location[2]+1]
+        region=img[
+            location[0]:location[0]+location[2]+1,
+            location[0]:location[0]+location[2]+1]
         if pickMode=='average':
             ret=[]
             for i in range(img.shape[-1]):
                 ret.append(Color(np.mean(region[:,:,i])))
         elif pickMode=='range':
-            ret=(Color(np.min(region,axis=(0,1))),Color(np.max(region,axis=(0,1))))
+            ret=(
+                Color(np.min(region,axis=(0,1))),
+                Color(np.max(region,axis=(0,1))))
         elif pickMode=='all':
             ret=region.reshape(-1,region.shape[-1])
             ret=np.unique(ret,axis=0)
@@ -95,7 +101,7 @@ def matchColorToImage(color,img):
     else:
         colChan=len(color)
         if imgChan>colChan:
-            msg="Don't know how to convert color[%d] to image pixel[%d]"%(len(color),img.shape[-1])
+            msg="Don't know how to convert color[%d] to image pixel[%d]"%(len(color),img.shape[-1]) # noqa: E501 # pylint: disable=line-too-long
             raise NotImplementedError(msg)
         if imgChan<colChan:
             color=color[0:imgChan]
@@ -115,20 +121,20 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  colors.py [options]')
         print('Options:')

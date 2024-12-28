@@ -29,14 +29,14 @@ from .imageRepr import numpyArray,imageMode
 
 def gradient(img):
     """
-    get the derivitive/gradient from the image
+    get the derivative/gradient from the image
 
     https://en.wikipedia.org/wiki/Image_gradient
     https://en.wikipedia.org/wiki/Gradient-domain_image_processing
 
     For possible uses, see:
         https://www.youtube.com/watch?v=70aLm2zv2ao
-            Explaination of above: https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Shibata_Gradient-Domain_Image_Reconstruction_CVPR_2016_paper.pdf # noqa: E501 # pylint: disable=line-too-long
+            Explanation of above: https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Shibata_Gradient-Domain_Image_Reconstruction_CVPR_2016_paper.pdf # noqa: E501 # pylint: disable=line-too-long
         http://www.ok.sc.e.titech.ac.jp/res/res.shtml
         http://grail.cs.washington.edu/projects/gradientshop/
         http://eric-yuan.me/poisson-blending/
@@ -140,10 +140,10 @@ def toLaplacianPyramid(img,levels):
     See also:
         https://en.wikipedia.org/wiki/Pyramid_(image_processing)
     """
-    return lapl_pyramid(gauss_pyramid(img,levels))
+    return laplacianPyramid(gaussianPyramid(img,levels))
 def fromLaplacianPyramid(img):
     """
-    convert from laplacian pytamid to flat image
+    convert from laplacian pyramid to flat image
     """
     return collapse(img)
 
@@ -159,38 +159,38 @@ def generating_kernel(a):
     return np.outer(w_1d, w_1d)
 
 
-def ireduce(image):
+def iReduce(image):
     """
     reduce image by 1/2
 
     Comes from:
         https://compvisionlab.wordpress.com/2013/05/13/image-blending-using-pyramid/
     """
-    out = None
-    kernel = generating_kernel(0.4)
-    outimage = scipy.signal.convolve2d(image,kernel,'same')
-    out = outimage[::2,::2]
+    out=None
+    kernel=generating_kernel(0.4)
+    outImage=scipy.signal.convolve2d(image,kernel,'same')
+    out=outImage[::2,::2]
     return out
 
 
-def iexpand(image):
+def iExpand(image):
     """
     expand image by factor of 2
 
     Comes from:
         https://compvisionlab.wordpress.com/2013/05/13/image-blending-using-pyramid/
     """
-    out = None
-    kernel = generating_kernel(0.4)
-    outimage = np.zeros((image.shape[0]*2, image.shape[1]*2), dtype=np.float64)
-    outimage[::2,::2]=image[:,:]
-    out = 4*scipy.signal.convolve2d(outimage,kernel,'same')
+    out=None
+    kernel=generating_kernel(0.4)
+    outImage=np.zeros((image.shape[0]*2,image.shape[1]*2),dtype=np.float64)
+    outImage[::2,::2]=image[:,:]
+    out=4*scipy.signal.convolve2d(outImage,kernel,'same')
     return out
 
 
-def gauss_pyramid(image, levels):
+def gaussianPyramid(image, levels):
     """
-    create a gaussain pyramid of a given image
+    create a gaussian pyramid of a given image
 
     Comes from:
         https://compvisionlab.wordpress.com/2013/05/13/image-blending-using-pyramid/
@@ -199,12 +199,12 @@ def gauss_pyramid(image, levels):
     output.append(image)
     tmp = image
     for _ in range(0,levels):
-        tmp = ireduce(tmp)
+        tmp = iReduce(tmp)
         output.append(tmp)
     return output
 
 
-def lapl_pyramid(gauss_pyr):
+def laplacianPyramid(gauss_pyr):
     """
     build a laplacian pyramid
 
@@ -215,7 +215,7 @@ def lapl_pyramid(gauss_pyr):
     k = len(gauss_pyr)
     for i in range(0,k-1):
         gu = gauss_pyr[i]
-        egu = iexpand(gauss_pyr[i+1])
+        egu = iExpand(gauss_pyr[i+1])
         if egu.shape[0] > gu.shape[0]:
             egu = np.delete(egu,(-1),axis=0)
         if egu.shape[1] > gu.shape[1]:
@@ -224,22 +224,22 @@ def lapl_pyramid(gauss_pyr):
     output.append(gauss_pyr.pop())
     return output
 
-def blend(lapl_pyr_white, lapl_pyr_black, gauss_pyr_mask):
+def blend(laplacianPyramidWhite,laplacianPyramidBlack,gaussianPyramidMask):
     """
     Blend the two laplacian pyramids by weighting them according to the mask.
 
     Comes from:
         https://compvisionlab.wordpress.com/2013/05/13/image-blending-using-pyramid/
     """
-    blended_pyr = []
-    k= len(gauss_pyr_mask)
+    blended_pyr=[]
+    k= len(gaussianPyramidMask)
     for i in range(0,k):
-        p1= gauss_pyr_mask[i]*lapl_pyr_white[i]
-        p2=(1 - gauss_pyr_mask[i])*lapl_pyr_black[i]
-        blended_pyr.append(p1 + p2)
+        p1=gaussianPyramidMask[i]*laplacianPyramidWhite[i]
+        p2=(1-gaussianPyramidMask[i])*laplacianPyramidBlack[i]
+        blended_pyr.append(p1+p2)
     return blended_pyr
 
-def collapse(lapl_pyr:np.ndarray)->np.ndarray:
+def collapse(laplacianPyramid:np.ndarray)->np.ndarray:
     """
     Reconstruct the image based on its laplacian pyramid.
 
@@ -248,19 +248,19 @@ def collapse(lapl_pyr:np.ndarray)->np.ndarray:
     """
     output=None
     output=np.zeros(
-        (lapl_pyr[0].shape[0],lapl_pyr[0].shape[1]),
+        (laplacianPyramid[0].shape[0],laplacianPyramid[0].shape[1]),
         dtype=np.float64)
-    for i in range(len(lapl_pyr)-1,0,-1):
-        lap=iexpand(lapl_pyr[i])
-        lapb=lapl_pyr[i-1]
-        if lap.shape[0]>lapb.shape[0]:
+    for i in range(len(laplacianPyramid)-1,0,-1):
+        lap=iExpand(laplacianPyramid[i])
+        laplacianB=laplacianPyramid[i-1]
+        if lap.shape[0]>laplacianB.shape[0]:
             lap=np.delete(lap,(-1),axis=0)
-        if lap.shape[1]>lapb.shape[1]:
+        if lap.shape[1]>laplacianB.shape[1]:
             lap=np.delete(lap,(-1),axis=1)
-        tmp=lap+lapb
-        lapl_pyr.pop()
-        lapl_pyr.pop()
-        lapl_pyr.append(tmp)
+        tmp=lap+laplacianB
+        laplacianPyramid.pop()
+        laplacianPyramid.pop()
+        laplacianPyramid.append(tmp)
         output=tmp
     return output
 
@@ -395,10 +395,10 @@ def polar2cartesian(polar_data):
     #coords=np.vstack((Ac,Sc))
     coords=np.vstack((Tc,Rc))
     # To avoid holes in the 360º - 0º boundary, the last column of the data
-    # copied in the begining
+    # copied in the beginning
     polar_data=np.vstack((polar_data,polar_data[-1,:]))
     # The data is mapped to the new coordinates
-    # Values outside range are substituted with nans
+    # Values outside range are substituted with NaNs
     cart_data=map_coordinates(
         polar_data,coords,order=order,mode='constant',cval=np.nan)
     # The data is reshaped and returned
@@ -432,10 +432,10 @@ def logpolar2cartesian(polar_data):
     #coords=np.vstack((Ac,Sc))
     coords=np.vstack((Tc,Rc))
     # To avoid holes in the 360º - 0º boundary, the last column of the data
-    # copied in the begining
+    # copied in the beginning
     polar_data=np.vstack((polar_data,polar_data[-1,:]))
     # The data is mapped to the new coordinates
-    # Values outside range are substituted with nans
+    # Values outside range are substituted with NaNs
     cart_data=map_coordinates(
         polar_data,coords,order=order,mode='constant',cval=np.nan)
     # The data is reshaped and returned
@@ -583,9 +583,9 @@ def cmdline(args:typing.Iterable[str])->int:
     """
     from .imageRepr import pilImage
     from .helper_routines import preview
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         lastFilename=None
         img=None
@@ -593,7 +593,7 @@ def cmdline(args:typing.Iterable[str])->int:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ('-h','--help'):
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--toWavelet':
                     if len(arg)>1:
                         img=toWavelet(img,arg[1])
@@ -615,7 +615,7 @@ def cmdline(args:typing.Iterable[str])->int:
             else:
                 lastFilename=arg
                 img=arg
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  numberSpaces.py img.jpg [options]')
         print('Options:')

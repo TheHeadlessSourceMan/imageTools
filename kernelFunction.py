@@ -41,11 +41,11 @@ class KernelMath:
 
     def __init__(self,kernel,math=None):
         """
-        :param kernel: a 2d matrix of coeffiecents to send into the math
+        :param kernel: a 2d matrix of coefficients to send into the math
             along with the pixels
         :param math: the mathematical function to apply to
             the kernel and pixels
-            the varaibles px and k are the pixels and kernel
+            the variables px and k are the pixels and kernel
             x,y are used across all indices
                 (this is positive/negative such that 0,0
                 is the pixel under operation)
@@ -64,20 +64,20 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  kernelFunction.py [options]')
         print('Options:')

@@ -4,7 +4,6 @@
 Defines color gradients and gives the ability to apply them.
 """
 import typing
-
 from colorCorrect import perPixel
 try:
     # first try to use bohrium, since it could help us accelerate
@@ -39,7 +38,7 @@ def colormap(img,colors=None):
     :param img:  a grayscale image
     :param colors:  [(decimalPercent,color),(...)]
         if no colors are given, then [(0.0,black),(1.0,white)]
-        if a single color and no percent is given, assume 
+        if a single color and no percent is given, assume
             [(0.0,black),(0.5,theColor),(1.0,white)]
 
     :return: the resulting image
@@ -56,14 +55,14 @@ def colormap(img,colors=None):
         if isinstance(colors,str):
             colors=strToColor(colors)
         if isFloat(colors):
-            imax=1.0
-            imin=0.0
+            iMax=1.0
+            iMin=0.0
         else:
-            imax=255
-            imin=0
+            iMax=255
+            iMin=0
         for _ in range(len(colors)):
-            white.append(imax)
-            black.append(imin)
+            white.append(iMax)
+            black.append(iMin)
         if len(colors) in [2,4]: # keep same alpha value
             black[-1]=colors[-1]
             white[-1]=white[-1]
@@ -91,7 +90,7 @@ def colormap(img,colors=None):
         img2=np.where(img>lastColor[0],lastColor[1],img2)
     else:
         def gradMap(c):
-            lastColor:typing.Optional[typing.List[float]]=None
+            lastColor:typing.List[float]=[0,0,0]
             for color in colors:
                 if c<color[0]:
                     if lastColor is None:
@@ -110,20 +109,20 @@ def cmdline(args:typing.Iterable[str])->int:
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  gradients.py [options]')
         print('Options:')

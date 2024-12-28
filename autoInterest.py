@@ -11,11 +11,11 @@ except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
 try:
-    import opencv # type: ignore # pylint: disable=unused-import
+    import opencv # type: ignore # noqa: F401 # pylint: disable=unused-import
     has_opencv=True
 except ImportError:
     has_opencv=False
-import scipy
+import scipy # type: ignore
 
 from featureFinder import (
     selectSkin,selectEyes,selectFaces,selectBackground,selectHair)
@@ -116,16 +116,16 @@ def cmdline(args):
     :param args: command line arguments (WITHOUT the filename)
     """
     from helper_routines import preview
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         image=None
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--interest':
                     image=interest(image)
                 elif arg[0]=='--selectFaces':
@@ -148,12 +148,12 @@ def cmdline(args):
                     preview(image)
                 elif arg[0]=='--save':
                     if len(arg)>1:
-                        imageRepr.pilImg(image).save(arg[1])
+                        imageRepr.pilImage(image).save(arg[1])
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 image=arg
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  autoInterest.py image.jpg [options]')
         print('Options:')

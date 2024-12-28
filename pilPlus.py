@@ -23,12 +23,12 @@ class PilPlusImage(PIL.Image.Image,Bounds):
     This is an experimental extension of PIL images allowing advanced access
     """
 
-    ANTIALIAS=PIL.Image.ANTIALIAS
-    BILINEAR=PIL.Image.BILINEAR
-    BICUBIC=PIL.Image.BICUBIC
-    LINEAR=PIL.Image.LINEAR
-    LANCZOS=PIL.Image.LANCZOS
-    NEAREST=PIL.Image.NEAREST
+    ANTIALIAS=PIL.Image.ANTIALIAS # pylint: disable=no-member
+    BILINEAR=PIL.Image.BILINEAR # pylint: disable=no-member
+    BICUBIC=PIL.Image.BICUBIC # pylint: disable=no-member
+    LINEAR=PIL.Image.LINEAR # pylint: disable=no-member
+    LANCZOS=PIL.Image.LANCZOS # pylint: disable=no-member
+    NEAREST=PIL.Image.NEAREST # pylint: disable=no-member
 
     def __init__(self,image=None,imageLoader=None):
         self.imageLoader=imageLoader
@@ -86,23 +86,23 @@ class PilPlusImage(PIL.Image.Image,Bounds):
         if self.image is not None:
             self.image=self.image.resize(size)
 
-    def imath(self,mathstring:str):
+    def imageMath(self,mathString:str):
         """
         calculate a math operation string on an image
 
-        :param mathstring: a string operation to whip on this image
+        :param mathString: a string operation to whip on this image
         :return: a new image
         """
         ret=self
         predicate=None
-        mathstring=mathstring.split('.') # TODO: could get confused with decimals.
-        for txstep in mathstring:
+        mathString=mathString.split('.') # TODO: could get confused with decimals. # noqa: E501 # pylint: disable=line-too-long
+        for txStep in mathString:
             if predicate is not None:
-                txstep=predicate+'.'+txstep
+                txStep=predicate+'.'+txStep
                 ret=numberspaceTransform(
-                    ret,txstep,invert=False,complex=False,level=None,mode=None)
+                    ret,txStep,invert=False,complex=False,level=None,mode=None)
             else:
-                ret=self.getChannel(txstep)
+                ret=self.getChannel(txStep)
         return ret
 
     def getChannel(self,channelId:str):
@@ -341,12 +341,16 @@ class PilPlusImage(PIL.Image.Image,Bounds):
     def tostring(self,*args,**kw):
         """ delegates to the wrapped image """
         return self._image.tostring(*args,**kw)
-    def offset(self,xoffset,yoffset=None):
+    def offset(self,
+        xOffset:float,
+        yOffset:typing.Optional[float]=None
+        )->None:
         """ delegates to the wrapped image """
-        self._image.offset(xoffset,yoffset)
+        self._image.offset(xOffset,yOffset)
     def alpha_composite(self,*args,**vargs):
         return self.image.alpha_composite(*args,**vargs)
     def category(self,*args):
+        """ Get image category """
         return self.image.category(*args)
     def close(self,*args):
         return self.image.close(*args)
@@ -363,32 +367,43 @@ class PilPlusImage(PIL.Image.Image,Bounds):
     def filter(self,*args):
         return self.image.filter(*args)
     def format(self,*args):
+        """ Get the image format """
         return self.image.format(*args)
     def format_description(self,*args):
+        """ Get the image format description """
         return self.image.format_description(*args)
     def frombytes(self,*args):
         return self.image.frombytes(*args)
     def fromstring(self,*args):
+        """ Get the image from string """
         return self.image.fromstring(*args)
     def getbands(self,*args):
         return self.image.getbands(*args)
     def getbbox(self,*args):
+        """ Get the image bounding box """
         return self.image.getbbox(*args)
     def getchannel(self,*args):
         return self.image.getchannel(*args)
     def getcolors(self,*args):
+        """ Get the image colors """
         return self.image.getcolors(*args)
     def getdata(self,*args):
+        """ Get the image data """
         return self.image.getdata(*args)
     def getextrema(self,*args):
+        """ Get the image extrema """
         return self.image.getextrema(*args)
     def getim(self,*args):
+        """ Get the image """
         return self.image.getim(*args)
     def getpalette(self,*args):
+        """ Get the image color palette """
         return self.image.getpalette(*args)
     def getpixel(self,*args):
+        """ Get image pixels """
         return self.image.getpixel(*args)
     def getprojection(self,*args):
+        """ Get a projection of the image """
         return self.image.getprojection(*args)
     #def height(self,*args): # get from bounds
     #\treturn self.image.height(*args)
@@ -397,6 +412,7 @@ class PilPlusImage(PIL.Image.Image,Bounds):
     #def im(self,*args):
     #\treturn self.image.im(*args)
     def info(self,*args):
+        """ Get info about the image """
         return self.image.info(*args)
     def load(self,*args,**vargs):
         """
@@ -406,6 +422,7 @@ class PilPlusImage(PIL.Image.Image,Bounds):
     #def mode(self,*args):
     #\treturn self.image.mode(*args)
     def palette(self,*args):
+        """ Get the image color palette """
         return self.image.palette(*args)
     def paste(self,*args):
         return self.image.paste(*args)
@@ -420,10 +437,12 @@ class PilPlusImage(PIL.Image.Image,Bounds):
     def putpixel(self,*args):
         return self.image.putpixel(*args)
     def pyaccess(self,*args):
+        """ Get the image pyaccess """
         return self.image.pyaccess(*args)
     def quantize(self,*args):
         return self.image.quantize(*args)
     def readonly(self,*args):
+        """ Get the image readonly attribute """
         return self.image.readonly(*args)
     def remap_palette(self,*args):
         return self.image.remap_palette(*args)
@@ -469,20 +488,20 @@ def cmdline(args:typing.List[str])->int:
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  pilPlus.py [options]')
         print('Options:')

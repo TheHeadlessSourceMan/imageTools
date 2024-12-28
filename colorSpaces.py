@@ -6,11 +6,11 @@ Routines to convert between color spaces
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-from .imageRepr import *
+from .imageRepr import numpyArray,imageMode,pilImage
 
 
 def changeColorspace(img,toSpace='RGB',fromSpace=None):
@@ -53,7 +53,7 @@ def changeColorspace(img,toSpace='RGB',fromSpace=None):
         else:
             raiseErr=True
     if raiseErr:
-        msg='No conversion exists from colorspace "'+fromSpace+'" to "'+toSpace+'"'
+        msg='No conversion exists from colorspace "'+fromSpace+'" to "'+toSpace+'"' # noqa: E501 # pylint: disable=line-too-long
         raise NotImplementedError(msg)
     return img
 
@@ -139,7 +139,8 @@ def hsv2rgbArray(hsv):
     """
     hsv=numpyArray(hsv)
     if len(hsv.shape)==2:
-        # this is a black and white image, so treat it as value, with zero hue and saturation
+        # this is a black and white image, so treat it as value
+        # with zero hue and saturation
         hs=np.empty((hsv.shape))
         return np.dstack((hs,hs,hsv))
     hi = np.floor(hsv[:, :, 0] * 6)
@@ -279,8 +280,10 @@ def grayscale(img,method='BT.709'):
         "avg" - average of all channels
         "HSV" or "median" - average of max and min
         "ps-gimp" - weighted average used by most image applications
-        "BT.709" - [default] weighted average specified by ITU-R "luma" specification BT.709
-        "BT.601" - weighted average specified by ITU-R specification BT.601 used by video formats
+        "BT.709" - [default] weighted average specified by
+            ITU-R "luma" specification BT.709
+        "BT.601" - weighted average specified by ITU-R specification BT.601
+            used by video formats
 
     NOTE:
         There are many different ways to go about this.
@@ -311,9 +314,9 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         img=None
         from .helper_routines import defaultLoader
@@ -321,7 +324,7 @@ def cmdline(args):
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--channel':
                     ch=getChannel(img,arg[1])
                     if ch is None:
@@ -332,13 +335,13 @@ def cmdline(args):
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 img=defaultLoader(arg)
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  colorSpaces.py [options]')
         print('Options:')
-        print('   --channel=R .............. extract a channel from the image - R,G,B,A,H,S,V')
+        print('   --channel=R .............. extract a channel from the image - R,G,B,A,H,S,V') # noqa: E501 # pylint: disable=line-too-long
         print('Notes:')
-        print('   * All filenames can also take file:// http:// https:// ftp:// urls')
+        print('   * All filenames can also take file:// http:// https:// ftp:// urls') # noqa: E501 # pylint: disable=line-too-long
 
 
 if __name__=='__main__':

@@ -18,8 +18,7 @@ except ImportError:
 import scipy.ndimage # type: ignore
 import scipy.signal # type: ignore
 import PIL.Image
-from .helper_routines import normalize
-from .selectionsAndPaths import deltaFromGray
+from .helper_routines import normalize,deltaFromGray
 
 
 def perlinNoiseX(
@@ -85,16 +84,16 @@ def randomNoise(
     return np.random.random(size)
 
 
-def perlinNoiseY(imgx:float=256,imgy:float=256):
+def perlinNoiseY(width:float=256,height:float=256):
     """
     generate perlin noise in the y direction
     """
     import random
-    image=PIL.Image.new("RGB",(imgx,imgy))
+    image=PIL.Image.new("RGB",(width,height))
     pixels=image.load()
-    octaves=int(np.log(max(imgx,imgy),2.0))
+    octaves=int(np.log(max(width,height),2.0))
     persistence=random.random()
-    imgAr=[[0.0 for i in range(imgx)] for j in range(imgy)] # image array
+    imgAr=[[0.0 for i in range(width)] for j in range(height)] # image array
     totAmp=0.0
     for k in range(octaves):
         freq=2**k
@@ -104,9 +103,9 @@ def perlinNoiseY(imgx:float=256,imgy:float=256):
         # using Bilinear Interpolation
         n,m=freq+1,freq+1 # grid size
         ar=[[random.random()*amp for i in range(n)] for j in range(m)]
-        nx,ny=imgx/(n-1.0),imgy/(m-1.0)
-        for ky in range(imgy):
-            for kx in range(imgx):
+        nx,ny=width/(n-1.0),height/(m-1.0)
+        for ky in range(height):
+            for kx in range(width):
                 i,j=int(kx/nx),int(ky/ny)
                 dx0=kx-i*nx
                 dx1=nx-dx0
@@ -119,8 +118,8 @@ def perlinNoiseY(imgx:float=256,imgy:float=256):
                 z/=nx*ny
                 imgAr[ky][kx]+=z # add image layers together
     # paint image
-    for ky in range(imgy):
-        for kx in range(imgx):
+    for ky in range(height):
+        for kx in range(width):
             c=int(imgAr[ky][kx]/totAmp*255)
             pixels[kx,ky]=(c,c,c)
     return image
@@ -172,18 +171,18 @@ def waveImage(
     if radial:
         raise NotImplementedError() # TODO: Implement radial wave images
     else:
-        twopi=2*np.pi
-        thetas=np.arange(size[0])*float(repeats)/size[0]*twopi
+        twoPi=2*np.pi
+        thetas=np.arange(size[0])*float(repeats)/size[0]*twoPi
         if wave=='sine':
             ret[:,:]=0.5+0.5*np.sin(thetas)
         elif wave=='saw':
-            n=np.round(thetas/twopi)
-            thetas-=n*twopi
-            ret[:,:]=np.where(thetas<0,thetas+twopi,thetas)/twopi
+            n=np.round(thetas/twoPi)
+            thetas-=n*twoPi
+            ret[:,:]=np.where(thetas<0,thetas+twoPi,thetas)/twoPi
         elif wave=='triangle':
             ret[:,:]=1.0-2.0*np.abs(
-                np.floor((thetas*(1.0/twopi))+0.5)-\
-                (thetas*(1.0/twopi))
+                np.floor((thetas*(1.0/twoPi))+0.5)-\
+                (thetas*(1.0/twoPi))
                 )
     return ret
 
@@ -264,7 +263,7 @@ def filmGrain(img,
     if grainSize is None:
         grainSize=(1200-iso)/300 # TODO: need to figure something out
     # TODO: this is not great, as it is uniform squares.  Something like
-    #   vironoi would be better
+    #   voronoi would be better
     fgo=blocks(size,grainSize,seed)
     if img is None:
         img=fgo
@@ -283,7 +282,8 @@ def blocks(
     """
     return smoothNoise(
         size,undersize=blockSize/size[0],
-        scaleMode=PIL.Image.Image.NEAREST,seed=seed)
+        scaleMode=PIL.Image.Image.NEAREST, # pylint: disable=no-member
+        seed=seed)
 
 
 def deltaC(size,
@@ -329,7 +329,7 @@ def clock(
     )->np.ndarray:
     """
     :param sharpEdge: if true, 100% black ends at 100% white
-        for a difinitive angle--otherwise gives more of a lighting effect
+        for a definitive angle--otherwise gives more of a lighting effect
     """
     angle=0.75-angle/360.0
     dc=deltaC(size)
@@ -347,7 +347,7 @@ def distance(src:np.ndarray)->np.ndarray:
     return scipy.ndimage.morphology.distance_transform_edt(src)
 
 
-def xypoints(img:np.ndarray)->np.ndarray:
+def xyPoints(img:np.ndarray)->np.ndarray:
     """
     get numpy array of x,y points for the image
 
@@ -362,7 +362,7 @@ def xypoints(img:np.ndarray)->np.ndarray:
 
 def voronoi(
     size:typing.Tuple[float,float]=(256,256),
-    npoints:int=30,
+    numPoints:int=30,
     mode:str='squared',
     invert:bool=False,
     seed:typing.Optional[float]=None
@@ -373,7 +373,7 @@ def voronoi(
     see also:
         http://blackpawn.com/texts/cellular/default.html
 
-    TODO: this could be optomized usinf a cKDtree
+    TODO: this could be optimized using a KDtree
         https://stackoverflow.com/questions/10818546/finding-index-of-nearest-point-in-numpy-arrays-of-x-and-y-coordinates
     """
     size=(int(size[0]),int(size[1]))
@@ -381,11 +381,11 @@ def voronoi(
     size=np.array(size)
     if seed is not None:
         np.random.seed(seed)
-    # create random points where voroni connections will appear
-    points=np.random.rand(int(npoints),2)*size
+    # create random points where voronoi connections will appear
+    points=np.random.rand(int(numPoints),2)*size
     # create a flattened list of xy points for every pixel
-    xy=xypoints(img).reshape((-1,2))
-    # for each pixel, determine distance to all voroni points
+    xy=xyPoints(img).reshape((-1,2))
+    # for each pixel, determine distance to all voronoi points
     dist=scipy.spatial.distance.cdist(xy,points)
     if mode=='simple':
         img=np.min(dist,axis=1)
@@ -428,7 +428,7 @@ def smoothNoise(
     if seed is not None:
         np.random.seed(seed)
     if scaleMode is None:
-        scaleMode=PIL.Image.Image.BILINEAR
+        scaleMode=PIL.Image.Image.BILINEAR # pylint: disable=no-member
     noise=np.random.random((int(size[0]*undersize),int(size[0]*undersize)))
     if undersize!=0:
         size=(int(size[0]),int(size[1]))
@@ -438,20 +438,20 @@ def smoothNoise(
 
 def turbulence(
     size:typing.Tuple[float,float]=(256,256),
-    turbSize:typing.Optional[float]=None,
+    turbulenceSize:typing.Optional[float]=None,
     seed:typing.Optional[float]=None
     )->np.ndarray:
     """
     Generate a turbulence noise
 
-    :param turbSize: initial size of the turbulence default is max(w,h)/10
+    :param turbulenceSize: initial size of the turbulence default is max(w,h)/10
     """
-    if turbSize is None:
-        turbSize=max(size)/10.0
+    if turbulenceSize is None:
+        turbulenceSize=max(size)/10.0
     img=None
-    s=turbSize
+    s=turbulenceSize
     while s>=1.0:
-        noise=smoothNoise(size,s/turbSize,seed=seed)/s
+        noise=smoothNoise(size,s/turbulenceSize,seed=seed)/s
         if img is None:
             img=noise
         else:
@@ -463,8 +463,8 @@ def turbulence(
 def marble(
     size:typing.Tuple[float,float]=(256,256),
     xPeriod:float=3.0,yPeriod:float=10.0,
-    turbPower:float=0.8,
-    turbSize:typing.Optional[float]=None,
+    turbulencePower:float=0.8,
+    turbulenceSize:typing.Optional[float]=None,
     seed:typing.Optional[float]=None
     )->np.ndarray:
     """
@@ -472,9 +472,9 @@ def marble(
 
     :param xPeriod: defines repetition of marble lines in x direction
     :param yPeriod: defines repetition of marble lines in y direction
-    :param turbPower: add twists and swirls (when turbPower==0 it becomes
-        a normal sine pattern)
-    :param turbSize: initial size of the turbulence default is max(w,h)/10
+    :param turbulencePower: add twists and swirls
+        (when turbulencePower==0 it becomes a normal sine pattern)
+    :param turbulenceSize: initial size of the turbulence default is max(w,h)/10
 
     NOTE:
         xPeriod and yPeriod together define the angle of the lines
@@ -485,37 +485,37 @@ def marble(
         https://lodev.org/cgtutor/randomnoise.html
     """
     w,h=size
-    turb=turbulence(size,turbSize,seed=seed)*turbPower
+    turbulence=turbulence(size,turbulenceSize,seed=seed)*turbulencePower
     # determine where the pixels will cycle
     cycleValue=np.ndarray((w,h))
     for y in range(h):
         for x in range(w):
             cycleValue[x,y]=(x*xPeriod/w)+(y*yPeriod/h)
-    # add in the turbulence and then last of all, make it a sinewave
-    img=np.abs(np.sin((cycleValue+turb)*np.pi))
+    # add in the turbulence and then last of all, make it a sine wave
+    img=np.abs(np.sin((cycleValue+turbulence)*np.pi))
     return img
 
 
 def woodRings(
     size:typing.Tuple[float,float]=(256,256),
     xyPeriod:float=12.0,
-    turbPower:float=0.15,
-    turbSize:float=32.0,
+    turbulencePower:float=0.15,
+    turbulenceSize:float=32.0,
     seed:typing.Optional[float]=None
     )->np.ndarray:
     """
     Draw wood rings
 
     :param xyPeriod: number of rings
-    :param turbPower: makes twists
-    :param turbSize: # initial size of the turbulence
+    :param turbulencePower: makes twists
+    :param turbulenceSize: # initial size of the turbulence
 
     Optimized version of:
         https://lodev.org/cgtutor/randomnoise.html
     """
-    turb=turbulence(size,turbSize,seed=seed)*turbPower
+    turbulenceValues=turbulence(size,turbulenceSize,seed=seed)*turbulencePower
     dc=normalize(deltaC(size,magnitude=True))
-    img=np.abs(np.sin(xyPeriod*(dc+turb)*np.pi))
+    img=np.abs(np.sin(xyPeriod*(dc+turbulenceValues)*np.pi))
     return normalize(img)
 
 
@@ -537,7 +537,7 @@ def waveformTexture(
     size=(int(size[0]),int(size[1]))
     w,h=size
     noiseSize=max(size)/8 # TODO: pass this value in somehow
-    turb=turbulence(size,noiseSize,seed=seed)*noise
+    turbulenceValues=turbulence(size,noiseSize,seed=seed)*noise
     if waveform.startswith('sine'):
         def sin(x):
             return np.abs(np.sin(x*np.pi))
@@ -553,7 +553,7 @@ def waveformTexture(
     if direction=='circular':
         dc=normalize(deltaC(size,magnitude=True))
         xyPeriod=frequency[0]#(w/frequency[0]+h/frequency[1])/2.0
-        img=fn(xyPeriod*(dc+turb))
+        img=fn(xyPeriod*(dc+turbulence))
         invert=invert is False # flip invert to look more as expected
     else:
         xPeriod=frequency[0]/2.0
@@ -564,7 +564,7 @@ def waveformTexture(
             for x in range(w):
                 cycleValue[x,y]=(x*xPeriod/w)+(y*yPeriod/h)
         # add in the turbulence and then last of all, make it a wave
-        img=fn(cycleValue+turb)
+        img=fn(cycleValue+turbulenceValues)
     img=normalize(img)
     if invert:
         img=1.0-img
@@ -586,12 +586,12 @@ def clock2(
     a rotary clockface gradient
     """
     noiseSize=max(size)/8 # TODO: pass this value in somehow
-    turb=turbulence(size,noiseSize,seed=seed)*noise
+    turbulenceValues=turbulence(size,noiseSize,seed=seed)*noise
     #points=np.ndarray((int(size[0]),int(size[1])))
     angle=0.75-direction/360.0
     dc=deltaC(size)
     img=np.arctan2(dc[:,:,0],dc[:,:,1])/np.pi
-    img=np.abs(np.sin((((normalize(img)+angle)%1.0)+turb)*np.pi))
+    img=np.abs(np.sin((((normalize(img)+angle)%1.0)+turbulenceValues)*np.pi))
     img=normalize(img)
     if invert:
         img=1.0-img
@@ -617,8 +617,8 @@ def x(
     return img
 
 def line(img,
-    xxx_todo_changeme,
-    xxx_todo_changeme1,
+    xxx_todo_change_me,
+    xxx_todo_change_me1,
     thick:float=1,
     color:float=1
     )->np.ndarray:
@@ -626,21 +626,21 @@ def line(img,
     comes from this neat implementation:
         https://stackoverflow.com/questions/31638651/how-can-i-draw-lines-into-numpy-arrays
     """
-    (x,y)=xxx_todo_changeme
-    (x2,y2)=xxx_todo_changeme1
-    def trapez(y,y0,w):
+    (x,y)=xxx_todo_change_me
+    (x2,y2)=xxx_todo_change_me1
+    def helper(y,y0,w):
         return np.clip(np.minimum(y+1+w/2-y0,-y+1+w/2+y0),0,1)
-    def weighted_line(r0,c0,r1,c1,w,rmin=0,rmax=np.inf):
+    def weightedLine(r0,c0,r1,c1,w,rMin=0,rMax=np.inf):
         # The algorithm below works fine if c1>=c0 and c1-c0>=abs(r1-r0).
         # If either of these cases are violated, do some switches.
         if abs(c1-c0)<abs(r1-r0):
             # Switch x and y, and switch again when returning.
-            xx,yy,val=weighted_line(c0,r0,c1,r1,w,rmin=rmin,rmax=rmax)
+            xx,yy,val=weightedLine(c0,r0,c1,r1,w,rMin=rMin,rMax=rMax)
             return (yy,xx,val)
         # At this point we know that the distance in columns (x) is greater
         # than that in rows (y). Possibly one more switch if c0>c1.
         if c0>c1:
-            return weighted_line(r1,c1,r0,c0,w,rmin=rmin,rmax=rmax)
+            return weightedLine(r1,c1,r0,c0,w,rMin=rMin,rMax=rMax)
         # The following is now always<1 in abs
         num=r1-r0
         denom=c1-c0
@@ -658,38 +658,38 @@ def line(img,
             np.floor(y).reshape(-1,1)+\
             np.arange(-thickness-1,thickness+2).reshape(1,-1))
         xx=np.repeat(x,yy.shape[1])
-        vals=trapez(yy,y.reshape(-1,1),w).flatten()
+        vals=helper(yy,y.reshape(-1,1),w).flatten()
         yy=yy.flatten()
         # Exclude useless parts and those outside of the interval
         # to avoid parts outside of the picture
-        mask=np.logical_and.reduce((yy>=rmin,yy<rmax,vals>0))
+        mask=np.logical_and.reduce((yy>=rMin,yy<rMax,vals>0))
         return (yy[mask].astype(int),xx[mask].astype(int),vals[mask])
-    def naive_line(r0,c0,r1,c1):
+    def naiveLine(r0,c0,r1,c1):
         # The algorithm below works fine if c1 >=c0 and c1-c0 >=abs(r1-r0).
         # If either of these cases are violated, do some switches.
         if abs(c1-c0)<abs(r1-r0):
             # Switch x and y, and switch again when returning.
-            xx,yy,val=naive_line(c0,r0,c1,r1)
+            xx,yy,val=naiveLine(c0,r0,c1,r1)
             return (yy,xx,val)
         # At this point we know that the distance in columns (x) is greater
         # than that in rows (y). Possibly one more switch if c0 > c1.
         if c0>c1:
-            return naive_line(r1,c1,r0,c0)
+            return naiveLine(r1,c1,r0,c0)
         # We write y as a function of x, because the slope is always<=1
         # (in absolute value)
         x=np.arange(c0,c1+1,dtype=float)
         y=x*(r1-r0)/(c1-c0)+(c1*r0-c0*r1)/(c1-c0)
-        valbot=np.floor(y)-y+1
-        valtop=y-np.floor(y)
+        valBottom=np.floor(y)-y+1
+        valTop=y-np.floor(y)
         return (
             np.concatenate((np.floor(y),np.floor(y)+1)).astype(int),
             np.concatenate((x,x)).astype(int),
-            np.concatenate((valbot,valtop)))
+            np.concatenate((valBottom,valTop)))
     if thick==1:
-        rows,cols,weights=naive_line(x,y,x2,y2)
+        rows,cols,weights=naiveLine(x,y,x2,y2)
     else:
-        rows,cols,weights=weighted_line(x,y,x2,y2,
-            thick,rmin=0,rmax=max(img.shape[0],img.shape[1]))
+        rows,cols,weights=weightedLine(x,y,x2,y2,
+            thick,rMin=0,rMax=max(img.shape[0],img.shape[1]))
     w=weights.reshape([-1,1]) # reshape anti-alias weights
     if len(img.shape)>2:
         img[rows,cols,0:3]=(
@@ -748,7 +748,6 @@ def arbitraryWave(wave,fromT,toT,mirror:bool=False):
     see also:
         https://docs.scipy.org/doc/scipy/reference/interpolate.html
     """
-    pass
 
 
 def cmdline(args:typing.Iterable[str])->int:
@@ -757,9 +756,9 @@ def cmdline(args:typing.Iterable[str])->int:
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         from numberSpaces import (
             polar2cartesian,cartesian2polar,toFrequency,fromFrequency)
@@ -775,7 +774,7 @@ def cmdline(args:typing.Iterable[str])->int:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--marble':
                     params=[size]
                     if len(arg)>1:
@@ -865,15 +864,15 @@ def cmdline(args:typing.Iterable[str])->int:
                     img=displaceImage(img,img2)
             if not isinstance(img,np.ndarray):
                 print(img.whatever)
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  proceduralTextures.py [option|image.jpg]')
         print('Options:')
         print('  --show ................. show the image')
-        print('  --marble[=xPeriod,yPeriod,turbPower,turbSize] .. marble')
+        print('  --marble[=xPeriod,yPeriod,turbulencePower,turbulenceSize] .. marble')
         print('  --perlin ............... clouds')
-        print('  --voronoi[=npoints,mode,invert] .. cell texture')
-        print('  --woodRings[=xyPeriod,turbPower,turbSize] .. wood rings')
+        print('  --voronoi[=nPoints,mode,invert] .. cell texture')
+        print('  --woodRings[=xyPeriod,turbulencePower,turbulenceSize] .. wood rings')
         print('  --blocks[=size] ........ randomly-shaded blocks ')
         print('  --x .................... big x across the image for testing')
         print('  --grid[=nx,ny] ......... grid')
@@ -882,7 +881,7 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  --clock[=waveform,frequency,noise,noiseBasis,')
         print('        noiseOctaves,noiseSoften,direction,invert] .. a smooth')
         print('                                             clockface or cone')
-        print('  --turbulence[=turbSize] .. sea turbulence')
+        print('  --turbulence[=turbulenceSize] .. sea turbulence')
         print('  --smooth=[undersize] ..... smooth noise')
         print('  --polar ................ convert to polar space')
         print('  --cartesian ............ convert to cartesian space')

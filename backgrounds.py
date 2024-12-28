@@ -3,10 +3,15 @@
 """
 Routines to create fill patterns using PIL
 """
+import typing
 from PIL import Image, ImageOps
 
 
-def checkerboard(w,h,color1=(102,102,102),color2=(153,153,153),squareSize=8):
+def checkerboard(
+    w:float,h:float,
+    color1=(102,102,102),color2=(153,153,153),
+    squareSize:int=8
+    )->Image.Image:
     """
     create an image based on checkerboard of two colors
 
@@ -51,14 +56,20 @@ def checkerboard(w,h,color1=(102,102,102),color2=(153,153,153),squareSize=8):
     return img
 
 
-def blinds(w,h,orientation='horizontal',color1=(0,0,0,255),color2=(0,0,0,0),thickness=1):
+def blinds(
+    w:float,h:float,
+    orientation='horizontal',
+    color1=(0,0,0,255),color2=(0,0,0,0),
+    thickness=1
+    )->Image.Image:
     """
     create an image based on lines of two colors
 
     default is 1pixel black lines, transparent background
     """
     if orientation=='vertical':
-        img=blinds(h,w,orientation='horizontal',color1=color1,color2=color2,thickness=thickness)
+        img=blinds(h,w,orientation='horizontal',
+            color1=color1,color2=color2,thickness=thickness)
         img.rotate(90)
     else:
         img=Image.new("RGBA",(int(w),int(h)),color1)
@@ -68,7 +79,11 @@ def blinds(w,h,orientation='horizontal',color1=(0,0,0,255),color2=(0,0,0,0),thic
     return img
 
 
-def tile1d(w,tileImg,mode='repeat'):
+def tile1d(
+    w:float,
+    tileImg:Image.Image,
+    mode:str='repeat'
+    )->Image.Image:
     """
     mode: 'repeat' 'once' 'stretch' 'repeat_flip'
     """
@@ -93,13 +108,19 @@ def tile1d(w,tileImg,mode='repeat'):
         img.paste(tileImg,(0,0))
     elif mode=='stretch':
         img=tileImg.copy()
-        img.resize((int(w),tileImg.height),Image.ANTIALIAS)
+        img.resize(
+            (int(w),tileImg.height),
+            Image.ANTIALIAS) # pylint: disable=no-member
     else:
         raise Exception('ERR: unknown image repeat mode "'+mode+'"')
     return img
 
 
-def tile(w,h,tileImg,xMode='repeat',yMode='repeat'):
+def tile(
+    w:float,h:float,
+    tileImg:Image.Image,
+    xMode:str='repeat',yMode:str='repeat'
+    )->Image.Image:
     """
     xMode: 'repeat' 'once' 'stretch' 'repeat_flip'
     yMode: 'repeat' 'once' 'stretch' 'repeat_flip'
@@ -111,26 +132,26 @@ def tile(w,h,tileImg,xMode='repeat',yMode='repeat'):
     return tileImg
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  backgrounds.py [options]')
         print('Options:')

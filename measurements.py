@@ -21,9 +21,9 @@ def convertMeasurements(
 
     :param fromValue: can be numeric or text.  If text, it can contain
         input units (set fromUnits=None)
-    :param toUnits: units to convert to.  If no units given, asssume pixels
+    :param toUnits: units to convert to.  If no units given, assume pixels
     :param fromUnits: units to convert from. If None, derive from fromValue.
-        If there are no units given anywhere, asssume pixels
+        If there are no units given anywhere, assume pixels
     :param ppi: required for converting from screen to actual size
         (make sure this is correct for the display mechanism!)
 
@@ -50,7 +50,7 @@ def convertMeasurements(
         'in':1,'inches':1,'inch':1,'"':1,
         'cm':2.45,'centimeter':2.45,'centimeters':2.45,
         'mm':24.5,'millimeters':24.5,'millimeter':24.5,
-        'pt':72,'point':72,'points':72, # TRIVIA: in the days of hand-set type, this was 72.27! # noqa: E501
+        'pt':72,'point':72,'points':72, # TRIVIA: in the days of hand-set type, this was 72.27! # noqa: E501 # pylint: disable=line-too-long
         'em':72,'ems':72,
         'en':144,'ens':144,
         'px':ppi,'pixel':ppi,'pixels':ppi,
@@ -73,18 +73,18 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     ppi=72
     fromValue=None
     toType='px'
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 if arg[0]=='--ppi':
                     ppi=float(arg[1])
                 else:
@@ -95,10 +95,10 @@ def cmdline(args):
                 else:
                     toType=arg
         if fromValue is None:
-            printhelp=True
+            printHelp=True
         else:
             print(convertMeasurements(fromValue,toType,ppi=ppi),toType)
-    if printhelp:
+    if printHelp:
         print('Converts between common measurements')
         print('Usage:')
         print('  measurements.py [options] fromValue toUnits')

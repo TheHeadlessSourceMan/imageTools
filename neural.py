@@ -28,10 +28,10 @@ def loadNeuralNetwork(filename:str):
     supports .t7 torch format
     TODO: supports onnx xml exchange format
     """
-    extn=filename.rsplit('.',1)[-1]
-    if extn=='t7':
+    fileExtension=filename.rsplit('.',1)[-1]
+    if fileExtension=='t7':
         return cv2.dnn.readNetFromTorch(filename)
-    if extn=='xml':
+    if fileExtension=='xml':
         return cv2.dnn.readNetFromONNX(filename)
     raise IOError('Unknown file format for "'+filename+'"')
 
@@ -94,16 +94,16 @@ def cmdline(args:typing.Iterable[str])->int:
     :param args: command line arguments (WITHOUT the filename)
     """
     import os
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         img=None
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='-styleTransfer':
                     if img is None:
                         print('ERR: no image to modify')
@@ -115,7 +115,7 @@ def cmdline(args:typing.Iterable[str])->int:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 img=arg
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  neural.py file [options]')
         print('Options:')

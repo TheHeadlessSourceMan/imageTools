@@ -76,7 +76,7 @@ def normalize(img:np.ndarray)->np.ndarray:
 
 def deltaFromGray(img:np.ndarray)->np.ndarray:
     """
-    returns an image differenced from gray
+    returns an image difference from gray
     """
     return normalize(abs(img-0.5))
 
@@ -129,7 +129,7 @@ def distort(
     """
     data=((f[0],f[1]) for f,t in points)
     size=img.size
-    return img.transform(size,Image.MESH,data)
+    return img.transform(size,Image.MESH,data) # pylint: disable=no-member
 
 
 def rolling_window(a, shape):
@@ -143,7 +143,7 @@ def rolling_window(a, shape):
 
 def applyFunctionToPatch(fn,a,patchSize=(3,3)):
     """
-    get all patchSize mattrices possible by sliding a patchSize window
+    get all patchSize matrices possible by sliding a patchSize window
     across the array
     """
     enable=False
@@ -301,16 +301,16 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         img=None
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--histogram':
                     mode='RGB'
                     if len(arg)>1:
@@ -323,7 +323,7 @@ def cmdline(args):
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 img=defaultLoader(arg)
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  helper_routines.py image.jpg [options]')
         print('Options:')

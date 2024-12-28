@@ -71,7 +71,7 @@ def directionToNormalColor(
 
 def applyDirectionalLight(
     img,
-    normalmap=None,
+    normalMap=None,
     lightAzimuth:float=45,
     lightElevation:float=45,
     lightColor=None):
@@ -79,7 +79,7 @@ def applyDirectionalLight(
     Add a directional light to the image.
 
     :param img: the image to light
-    :param normalmap: a normal map to define its shape
+    :param normalMap: a normal map to define its shape
         (if None, use normalMapFromImage(img))
     :param lightAzimuth: compass direction of the light source
     :param lightElevation: up/down direction of the light source
@@ -90,51 +90,51 @@ def applyDirectionalLight(
     img=numpyArray(img)
     if lightColor is None:
         lightColor=[1.0,1.0,1.0]
-    if normalmap is None:
-        normalmap=normalMapFromImage(img)
+    if normalMap is None:
+        normalMap=normalMapFromImage(img)
     else:
-        normalmap=numpyArray(normalmap)
-        normalmap=crop(normalmap,img)
+        normalMap=numpyArray(normalMap)
+        normalMap=crop(normalMap,img)
     lightColor=strToColor(lightColor)
     dLight=directionToNormalColor(lightAzimuth,lightElevation)
-    normalmap=normalmap[:,:]*dLight
-    lightMap=np.average(normalmap,axis=-1)
+    normalMap=normalMap[:,:]*dLight
+    lightMap=np.average(normalMap,axis=-1)
     lightMap=lightMap[:,:,np.newaxis]*lightColor
     return img+lightMap
 
 
-def heightMapFromNormalMap(normalmap):
+def heightMapFromNormalMap(normalMap):
     """
-    Create a height map (sometimes called a bumpmap) from a normalmap
+    Create a height map (sometimes called a bumpMap) from a normalMap
 
-    :param normalmap: normal map to convert
+    :param normalMap: normal map to convert
 
     NOTE: Essentially, this is just the blue channel pointing towards us.
     """
-    normalmap=numpyArray(normalmap)
-    return normalize(normalmap[:,:,2])
+    normalMap=numpyArray(normalMap)
+    return normalize(normalMap[:,:,2])
 
 
-def normalMapFromHeightMap(heightmap):
+def normalMapFromHeightMap(heightMap):
     """
-    Create a normal map from a height map (sometimes called a bumpmap)
+    Create a normal map from a height map (sometimes called a bumpMap)
 
-    :param heightmap: height map to convert
+    :param heightMap: height map to convert
 
     Comes from:
         http://www.juhanalankinen.com/calculating-normalmaps-with-python-and-numpy/
     """
-    heightmap=numpyArray(heightmap)
-    heightmap=normalize(heightmap)
-    matI = np.identity(heightmap.shape[0]+1)
+    heightMap=numpyArray(heightMap)
+    heightMap=normalize(heightMap)
+    matI = np.identity(heightMap.shape[0]+1)
     matNeg = -1 * matI[0:-1, 1:]
     matNeg[0, -1] = -1
     matI = matI[1:, 0:-1]
     matI[-1,0] = 1
     matI += matNeg
-    matGradX = (matI.dot(heightmap.T)).T
-    matGradY = matI.dot(heightmap)
-    matNormal = np.zeros([heightmap.shape[0], heightmap.shape[1], 3])
+    matGradX = (matI.dot(heightMap.T)).T
+    matGradY = matI.dot(heightMap)
+    matNormal = np.zeros([heightMap.shape[0], heightMap.shape[1], 3])
     matNormal[:,:,0] = -matGradX
     matNormal[:,:,1] = matGradY
     matNormal[:,:,2] = 1.0
@@ -149,9 +149,9 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         from imageRepr import pilImage
         from helper_routines import preview,clampImage
@@ -162,7 +162,7 @@ def cmdline(args):
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--img':
                     img=arg[1]
                 elif arg[0]=='--norm':
@@ -214,7 +214,7 @@ def cmdline(args):
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  pseudo3d.py [options]')
         print('Options:')

@@ -113,43 +113,43 @@ def imageBorder(img,thickness,edgeFill="#ffffff00"):
         # top
         fill=img.crop((0,0,img.width,1)).resize(
             (img.width,thickness[1]),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(thickness[1],0))
         # bottom
         fill=img.crop((0,img.height-1,img.width,img.height)).resize(
             (img.width,thickness[2]),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(thickness[2],img.height+thickness[2]))
         # left
         fill=img.crop((0,0,1,img.height)).resize(
             (thickness[0],img.height),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(0,thickness[0]))
         # right
         fill=img.crop((img.width-1,0,img.width,img.height)).resize(
             (thickness[3],img.height),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(img.width+thickness[3],thickness[3]))
         # TODO: corners
         # top-left corner
         fill=img.crop((0,0,1,1)).resize(
             (thickness,thickness),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(0,0))
         # top-right corner
         fill=img.crop((img.width-1,0,img.width,1)).resize(
             (thickness,thickness),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(img.width+thickness,0))
         # bottom-left corner
         fill=img.crop((0,img.height-1,1,img.height)).resize(
             (thickness,thickness),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(0,img.height+thickness))
         # bottom-right corner
         fill=img.crop((img.width-1,img.height-1,img.width,img.height)).resize(
             (thickness,thickness),
-            resample=Image.NEAREST)
+            resample=Image.NEAREST) # pylint: disable=no-member
         newImage.paste(fill,(img.width+thickness,img.height+thickness))
     else:
         newImage=Image.new(img.mode,newSize,edgeFill)
@@ -341,17 +341,17 @@ def bestBounds(image,size,regionOfInterest=None):
 
     :return (x,y,x2,y2):
     """
-    imsize=getSize(image)
+    imgSize=getSize(image)
     size=getSize(size)
-    dx=max(int(imsize[0]-size[0]),0)
-    dy=max(int(imsize[1]-size[1]),0)
+    dx=max(int(imgSize[0]-size[0]),0)
+    dy=max(int(imgSize[1]-size[1]),0)
     if regionOfInterest is None:
-        return (dx/2,dy/2,imsize[0]-dx/2,imsize[1]-dy/2)
+        return (dx/2,dy/2,imgSize[0]-dx/2,imgSize[1]-dy/2)
     if regionOfInterest is True: # auto-calculate
         from . import autoInterest
         regionOfInterest=autoInterest.interest(image)
     # determine bounds
-    n,s,e,w=0,imsize[0]-1,imsize[1]-1,0
+    n,s,e,w=0,imgSize[0]-1,imgSize[1]-1,0
     if dy>0:
         col_roi=np.sum(regionOfInterest,axis=1)
         ff=False # when there's a tie, alternate sides
@@ -400,8 +400,8 @@ def crop(image,size,regionOfInterest=None):
         size=getSize(size)
     if isinstance(size,tuple): # make editable
         size=[wh for wh in size]
-    imsize=getSize(image)
-    if imsize==size: # no resizing necessary
+    imageSize=getSize(image)
+    if imageSize==size: # no resizing necessary
         return image
     if len(size)==2:
         size=bestBounds(image,size,regionOfInterest)
@@ -423,7 +423,7 @@ def stretch(image,toSize,interpolation=None,regionOfInterest=None):
         (if =True, then auto-calculate as necessary)
 
     NOTE: if toSize matches the aspect ratio of the image, will ALWAYS change
-        to biliniar for speed.
+        to bilinear for speed.
 
     TODO: liquid rescale not yet implemented
     """
@@ -454,14 +454,17 @@ def stretch(image,toSize,interpolation=None,regionOfInterest=None):
     # perform the correct resize
     if isinstance(interpolation,str):
         if interpolation in ['nearest','lanczos','bilinear','bicubic']:
+            resample:typing.Any=None
             if interpolation=='nearest':
-                resample=Image.NEAREST
+                resample=Image.NEAREST # pylint: disable=no-member
             elif interpolation=='bilinear':
-                resample=Image.BILINEAR
+                resample=Image.BILINEAR # pylint: disable=no-member
             elif interpolation=='bicubic':
-                resample=Image.BICUBIC
+                resample=Image.BICUBIC # pylint: disable=no-member
             elif interpolation=='lanczos':
-                resample=Image.LANCZOS
+                resample=Image.LANCZOS # pylint: disable=no-member
+            else:
+                resample=Image.NEAREST # pylint: disable=no-member
             return imageRepr.numpyArray(
                 imageRepr.pilImage(image).resize(
                     (int(toSize[0]),int(toSize[1])),
@@ -570,9 +573,9 @@ def cmdline(args):
     :param args: command line arguments (WITHOUT the filename)
     """
     from . import helper_routines
-    printhelp=False
+    printHelp=False
     if not args:
-        printhelp=True
+        printHelp=True
     else:
         edgeFill=(128,128,128,0)
         aspect='stretch'
@@ -583,7 +586,7 @@ def cmdline(args):
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 if arg[0] in ['-h','--help']:
-                    printhelp=True
+                    printHelp=True
                 elif arg[0]=='--edgeFill':
                     if len(arg)>1:
                         edgeFill=arg[1]
@@ -646,7 +649,7 @@ def cmdline(args):
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 image=imageRepr.defaultLoader(arg)
-    if printhelp:
+    if printHelp:
         print('Usage:')
         print('  resizing.py image.jpg [options] [commands]')
         print('Options:')
@@ -668,7 +671,7 @@ def cmdline(args):
         print('   --interpolation= .......... how to resize pixels')
         print('\t  nearest,lanczos,bilinear,bicubic,cubic,liquid or a numeric')
         print('\t  order for spline interpolation')
-        print('\t  If mssing, attempt to choose the best.  Generally you')
+        print('\t  If missing, attempt to choose the best.  Generally you')
         print('    should keep it on that or liquid')
         print('   --exactSize=[T/F] ......... crop and/or fill to fit the')
         print('    exact size specified.')
@@ -679,7 +682,7 @@ def cmdline(args):
         print('\t  (or =True, then auto-calculate as necessary)')
         print('Commands:')
         print('   --imageBorder=thick .. expand the image with a border - ')
-        print('     either a size, (horiz,vert), or (n,s,e,w)')
+        print('     either a size, (horizontal,vertical), or (n,s,e,w)')
         print('   --scale=amtX,amtY .... if amt<1.0, then scale by percent,')
         print('     otherwise scale to exact size')
         print('   --crop=w,h ........... crop to w,h')
@@ -689,7 +692,7 @@ def cmdline(args):
         print('   --show ............... show the working image')
         print('   --save=filename ...... save the working image')
         print('Notes:')
-        print('   * All filenames can also take urle like')
+        print('   * All filenames can also take urls like')
         print('      file:// http:// https:// ftp://')
 
 
