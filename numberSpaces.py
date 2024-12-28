@@ -6,21 +6,25 @@ Tools for performing operations in different number domains, such as:
     polar
     frequency
 """
+import typing
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-import scipy
+import scipy # type: ignore
 try:
-    import pywt
+    import pywt # type: ignore
 except ImportError as e:
     print("ERR: Missing PyWavelets.")
-    print("Install with:\n\tpip install PyWavelets\nOr go to:\n\thttps://pywavelets.readthedocs.io")
+    print("Install with:")
+    print("    pip install PyWavelets")
+    print("Or go to:")
+    print("    https://pywavelets.readthedocs.io")
     raise e
-from .helper_routines import *
+from .imageRepr import numpyArray,imageMode
 
 
 def gradient(img):
@@ -32,7 +36,7 @@ def gradient(img):
 
     For possible uses, see:
         https://www.youtube.com/watch?v=70aLm2zv2ao
-            Explaination of above: https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Shibata_Gradient-Domain_Image_Reconstruction_CVPR_2016_paper.pdf
+            Explaination of above: https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Shibata_Gradient-Domain_Image_Reconstruction_CVPR_2016_paper.pdf # noqa: E501 # pylint: disable=line-too-long
         http://www.ok.sc.e.titech.ac.jp/res/res.shtml
         http://grail.cs.washington.edu/projects/gradientshop/
         http://eric-yuan.me/poisson-blending/
@@ -55,7 +59,7 @@ def inverseGradient(g):
         https://translate.google.com/translate?sl=auto&tl=en&js=y&prev=_t&hl=en&ie=UTF-8&u=https%3A%2F%2Fpebbie.wordpress.com%2F2012%2F04%2F04%2Fpython-poisson-image-editing%2F&edit-text=
 
     Implementations:
-        I really need to use this! https://github.com/daleroberts/poisson/blob/master/poisson.py
+        I really need to use this! https://github.com/daleroberts/poisson/blob/master/poisson.py # noqa: E501 # pylint: disable=line-too-long
     """
     raise NotImplementedError()
 
@@ -235,27 +239,29 @@ def blend(lapl_pyr_white, lapl_pyr_black, gauss_pyr_mask):
         blended_pyr.append(p1 + p2)
     return blended_pyr
 
-def collapse(lapl_pyr):
+def collapse(lapl_pyr:np.ndarray)->np.ndarray:
     """
     Reconstruct the image based on its laplacian pyramid.
 
     Comes from:
         https://compvisionlab.wordpress.com/2013/05/13/image-blending-using-pyramid/
     """
-    output = None
-    output = np.zeros((lapl_pyr[0].shape[0],lapl_pyr[0].shape[1]), dtype=np.float64)
+    output=None
+    output=np.zeros(
+        (lapl_pyr[0].shape[0],lapl_pyr[0].shape[1]),
+        dtype=np.float64)
     for i in range(len(lapl_pyr)-1,0,-1):
-        lap = iexpand(lapl_pyr[i])
-        lapb = lapl_pyr[i-1]
-        if lap.shape[0] > lapb.shape[0]:
-            lap = np.delete(lap,(-1),axis=0)
-        if lap.shape[1] > lapb.shape[1]:
-            lap = np.delete(lap,(-1),axis=1)
-        tmp = lap + lapb
+        lap=iexpand(lapl_pyr[i])
+        lapb=lapl_pyr[i-1]
+        if lap.shape[0]>lapb.shape[0]:
+            lap=np.delete(lap,(-1),axis=0)
+        if lap.shape[1]>lapb.shape[1]:
+            lap=np.delete(lap,(-1),axis=1)
+        tmp=lap+lapb
         lapl_pyr.pop()
         lapl_pyr.pop()
         lapl_pyr.append(tmp)
-        output = tmp
+        output=tmp
     return output
 
 
@@ -267,11 +273,12 @@ def toFrequency(img):
     check out this video:
         https://www.youtube.com/watch?v=spUNpyF58BY
     """
-    if True:
+    useScipy=True # use scipy vs numpy
+    if not useScipy:
         return np.fft.rfft2(img)
     else: # alternative implementation
         shift=False
-        import scipy.fftpack
+        import scipy.fftpack # type: ignore
         a=numpyArray(img)
         freq=scipy.fftpack.fft2(a)
         if shift:
@@ -283,7 +290,8 @@ def fromFrequency(img):
     """
     Convert an image back from frequency domain
     """
-    if True:
+    useScipy=False # use scipy instead of numpy
+    if not useScipy:
         return np.fft.irfft2(img)
     else: # alternative implementation
         import scipy.fftpack
@@ -291,7 +299,12 @@ def fromFrequency(img):
         return a
 
 
-def cartesian2polar(img, center=None, final_radius=None, initial_radius = None, phase_width = 3000):
+def cartesian2polar(
+    img,
+    center:typing.Optional[typing.Tuple[float,float]]=None,
+    final_radius:typing.Optional[float]=None,
+    initial_radius:typing.Optional[float]=None,
+    phase_width:int=3000):
     """
     Comes from:
         https://stackoverflow.com/questions/9924135/fast-cartesian-to-polar-to-cartesian-in-python
@@ -302,26 +315,30 @@ def cartesian2polar(img, center=None, final_radius=None, initial_radius = None, 
     if final_radius is None:
         final_radius=max(img.shape[0],img.shape[1])/2
     if initial_radius is None:
-        initial_radius = 0
+        initial_radius=0
     phase_width=img.shape[0]/2
-
-    theta , R = np.meshgrid(np.linspace(0, 2*np.pi, phase_width),
-        np.arange(initial_radius, final_radius))
-    Xcart  = R  * np.cos(theta) + center[0]
-    Ycart  = R  * np.sin(theta) + center[1]
-    Xcart = Xcart.astype(int)
-    Ycart = Ycart.astype(int)
-
-    if img.ndim ==3:
-        polar_img = img[Ycart,Xcart,:]
-        polar_img = np.reshape(polar_img,(final_radius-initial_radius,phase_width,img.shape[-1]))
+    theta,R=np.meshgrid(np.linspace(0,2*np.pi,phase_width),
+        np.arange(initial_radius,final_radius))
+    Xcart=R*np.cos(theta)+center[0]
+    Ycart=R*np.sin(theta)+center[1]
+    Xcart=Xcart.astype(int)
+    Ycart=Ycart.astype(int)
+    if img.ndim==3:
+        polar_img=img[Ycart,Xcart,:]
+        polar_img=np.reshape(
+            polar_img,(final_radius-initial_radius,phase_width,img.shape[-1]))
     else:
-        polar_img = img[Ycart,Xcart]
-        polar_img = np.reshape(polar_img,(final_radius-initial_radius,phase_width))
+        polar_img=img[Ycart,Xcart]
+        polar_img=np.reshape(
+            polar_img,(final_radius-initial_radius,phase_width))
     return polar_img
 
 
-def cartesian2logpolar(img, center=None, final_radius=None, initial_radius = None, phase_width = 3000):
+def cartesian2logpolar(img,
+    center:typing.Optional[typing.Tuple[float,float]]=None,
+    final_radius:typing.Optional[float]=None,
+    initial_radius:typing.Optional[float]=None,
+    phase_width:float=3000):
     """
     See also:
         https://en.wikipedia.org/wiki/Log-polar_coordinates
@@ -331,22 +348,22 @@ def cartesian2logpolar(img, center=None, final_radius=None, initial_radius = Non
     if final_radius is None:
         final_radius=max(img.shape[0],img.shape[1])/2
     if initial_radius is None:
-        initial_radius = 0
+        initial_radius=0
     phase_width=img.shape[0]/2
-
-    theta , R = np.meshgrid(np.linspace(0, 2*np.pi, phase_width),
-        np.arange(initial_radius, final_radius))
-    Xcart  = np.exp(R)  * np.cos(theta) + center[0]
-    Ycart  = np.exp(R)  * np.sin(theta) + center[1]
-    Xcart = Xcart.astype(int)
-    Ycart = Ycart.astype(int)
-
-    if img.ndim ==3:
-        polar_img = img[Ycart,Xcart,:]
-        polar_img = np.reshape(polar_img,(final_radius-initial_radius,phase_width,img.shape[-1]))
+    theta,R=np.meshgrid(np.linspace(0,2*np.pi,phase_width),
+        np.arange(initial_radius,final_radius))
+    Xcart=np.exp(R)*np.cos(theta)+center[0]
+    Ycart=np.exp(R)*np.sin(theta)+center[1]
+    Xcart=Xcart.astype(int)
+    Ycart=Ycart.astype(int)
+    if img.ndim==3:
+        polar_img=img[Ycart,Xcart,:]
+        polar_img=np.reshape(
+            polar_img,(final_radius-initial_radius,phase_width,img.shape[-1]))
     else:
-        polar_img = img[Ycart,Xcart]
-        polar_img = np.reshape(polar_img,(final_radius-initial_radius,phase_width))
+        polar_img=img[Ycart,Xcart]
+        polar_img=np.reshape(
+            polar_img,(final_radius-initial_radius,phase_width))
     return polar_img
 
 
@@ -355,95 +372,77 @@ def polar2cartesian(polar_data):
     From:
         https://stackoverflow.com/questions/2164570/reprojecting-polar-to-cartesian-grid
     """
-
-    from scipy.ndimage.interpolation import map_coordinates
-
+    from scipy.ndimage.interpolation import map_coordinates # type: ignore
     theta_step=1
     range_step=500
-    x=np.arange(-100000, 100000, 1000)
-    y=x
+    xRange=np.arange(-100000,100000,1000)
+    yRange=xRange
     order=3
-
     # "x" and "y" are numpy arrays with the desired cartesian coordinates
     # we make a meshgrid with them
-    X, Y = np.meshgrid(x, y)
-
-    # Now that we have the X and Y coordinates of each point in the output plane
-    # we can calculate their corresponding theta and range
-    Tc = np.degrees(np.arctan2(Y, X)).ravel()
-    Rc = (np.sqrt(X**2 + Y**2)).ravel() # TODO: is np.hypot(X,Y) faster?
-
+    X,Y=np.meshgrid(xRange,yRange)
+    # Now that we have the X and Y coordinates of each point in the output
+    # plane we can calculate their corresponding theta and range
+    Tc=np.degrees(np.arctan2(Y,X)).ravel()
+    Rc=(np.sqrt(X**2+Y**2)).ravel() # TODO: is np.hypot(X,Y) faster?
     # Negative angles are corrected
-    Tc[Tc < 0] = 360 + Tc[Tc < 0]
-
+    Tc[Tc<0]=360+Tc[Tc<0]
     # Using the known theta and range steps, the coordinates are mapped to
     # those of the data grid
-    Tc = Tc / theta_step
-    Rc = Rc / range_step
-
+    Tc=Tc/theta_step
+    Rc=Rc/range_step
     # An array of polar coordinates is created stacking the previous arrays
-    #coords = np.vstack((Ac, Sc))
-    coords = np.vstack((Tc, Rc))
-
+    #coords=np.vstack((Ac,Sc))
+    coords=np.vstack((Tc,Rc))
     # To avoid holes in the 360º - 0º boundary, the last column of the data
     # copied in the begining
-    polar_data = np.vstack((polar_data, polar_data[-1,:]))
-
+    polar_data=np.vstack((polar_data,polar_data[-1,:]))
     # The data is mapped to the new coordinates
     # Values outside range are substituted with nans
-    cart_data = map_coordinates(polar_data, coords, order=order, mode='constant', cval=np.nan)
-
+    cart_data=map_coordinates(
+        polar_data,coords,order=order,mode='constant',cval=np.nan)
     # The data is reshaped and returned
-    return cart_data.reshape(len(Y), len(X)).T
+    return cart_data.reshape(len(Y),len(X)).T
 
 def logpolar2cartesian(polar_data):
     """
     From:
         https://stackoverflow.com/questions/2164570/reprojecting-polar-to-cartesian-grid
     """
-
     from scipy.ndimage.interpolation import map_coordinates
-
     theta_step=1
     range_step=500
-    x=np.arange(-100000, 100000, 1000)
-    y=x
+    xRange=np.arange(-100000,100000,1000)
+    yRange=xRange
     order=3
-
     # "x" and "y" are numpy arrays with the desired cartesian coordinates
     # we make a meshgrid with them
-    X, Y = np.meshgrid(x, y)
-
-    # Now that we have the X and Y coordinates of each point in the output plane
-    # we can calculate their corresponding theta and range
-    Tc = np.degrees(np.arctan2(Y, X)).ravel()
-    Rc = np.ln(np.sqrt(X**2 + Y**2)).ravel()
-
+    X,Y=np.meshgrid(xRange,yRange)
+    # Now that we have the X and Y coordinates of each point in the output
+    # plane we can calculate their corresponding theta and range
+    Tc=np.degrees(np.arctan2(Y,X)).ravel()
+    Rc=np.ln(np.sqrt(X**2+Y**2)).ravel()
     # Negative angles are corrected
-    Tc[Tc < 0] = 360 + Tc[Tc < 0]
-
+    Tc[Tc<0]=360+Tc[Tc<0]
     # Using the known theta and range steps, the coordinates are mapped to
     # those of the data grid
-    Tc = Tc / theta_step
-    Rc = Rc / range_step
-
+    Tc=Tc/theta_step
+    Rc=Rc/range_step
     # An array of polar coordinates is created stacking the previous arrays
-    #coords = np.vstack((Ac, Sc))
-    coords = np.vstack((Tc, Rc))
-
+    #coords=np.vstack((Ac,Sc))
+    coords=np.vstack((Tc,Rc))
     # To avoid holes in the 360º - 0º boundary, the last column of the data
     # copied in the begining
-    polar_data = np.vstack((polar_data, polar_data[-1,:]))
-
+    polar_data=np.vstack((polar_data,polar_data[-1,:]))
     # The data is mapped to the new coordinates
     # Values outside range are substituted with nans
-    cart_data = map_coordinates(polar_data, coords, order=order, mode='constant', cval=np.nan)
-
+    cart_data=map_coordinates(
+        polar_data,coords,order=order,mode='constant',cval=np.nan)
     # The data is reshaped and returned
-    return cart_data.reshape(len(Y), len(X)).T
+    return cart_data.reshape(len(Y),len(X)).T
 
 
-def _wavelet(wavelet='haar'):
+def _wavelet(wavelet:str='haar'):
     """
     :param wavelet: any common, named wavelet, including
             'Haar' (default)
@@ -466,10 +465,11 @@ def _wavelet(wavelet='haar'):
             [highpass_reconstruction] ]
         where each is a pair of floating point values
 
-        NOTE: Coefficients for the hundreds of built-in wavelets can be found at:
+        NOTE:
+        Coefficients for the hundreds of built-in wavelets can be found at:
             http://wavelets.pybytes.com/
     """
-    nameMap={
+    nameMap:typing.Dict[str,str]={
         'haar':'haar',
         'daubechies':'db1',
         'symlet':'sym1',
@@ -491,7 +491,10 @@ def _wavelet(wavelet='haar'):
     return nameMap[wavelet.lower().replace(' ','').replace('_','')]
 
 
-def toWavelet(img,wavelet='haar',mode='symmetric',level=None):
+def toWavelet(img,
+    wavelet:str='haar',
+    mode:str='symmetric',
+    level:typing.Optional[int]=None):
     """
     :param img: any supported image type to transform into wavelet space
     :param wavelet: any common, named wavelet, including
@@ -515,9 +518,12 @@ def toWavelet(img,wavelet='haar',mode='symmetric',level=None):
             [highpass_reconstruction] ]
         where each is a pair of floating point values
     :param mode: str or 2-tuple of str, optional
-        Signal extension mode, see Modes (default: "symmetric"). This can also be a tuple containing a mode to apply along each axis in axes.
+        Signal extension mode, see Modes (default: "symmetric").
+        Can also be a tuple containing a mode to apply along each axis in axes.
     :param level: int, optional
-        Decomposition level (must be >= 0). If level is None (default) then it will be calculated using the dwt_max_level function.
+        Decomposition level (must be >= 0).
+        If level is None (default) then it will be calculated using the
+        dwt_max_level function.
 
     See also:
         https://pywavelets.readthedocs.io/en/latest/ref/index.html
@@ -530,7 +536,8 @@ def toWavelet(img,wavelet='haar',mode='symmetric',level=None):
         return pywt.wavedec2(img,_wavelet(wavelet),mode,level)
     ret=[]
     for ch in range(len(colorMode)):
-        ret.append(np.array(pywt.wavedec2(img[:,:,ch],_wavelet(wavelet),mode,level)))
+        wl=pywt.wavedec2(img[:,:,ch],_wavelet(wavelet),mode,level)
+        ret.append(np.array(wl))
     ret=np.dstack(ret)
     return ret
 
@@ -559,7 +566,8 @@ def fromWavelet(wavImg,wavelet='haar',mode='symmetric'):
             [highpass_reconstruction] ]
         where each is a pair of floating point values
     :param mode: str or 2-tuple of str, optional
-        Signal extension mode, see Modes (default: �symmetric�). This can also be a tuple containing a mode to apply along each axis in axes.
+        Signal extension mode, see Modes (default: �symmetric�).
+        This can also be a tuple containing a mode to apply along each axis.
 
     See also:
         https://pywavelets.readthedocs.io/en/latest/ref/index.html
@@ -567,12 +575,14 @@ def fromWavelet(wavImg,wavelet='haar',mode='symmetric'):
     return pywt.waverec2(wavImg,_wavelet(wavelet),mode)
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
     :param args: command line arguments (WITHOUT the filename)
     """
+    from .imageRepr import pilImage
+    from .helper_routines import preview
     printhelp=False
     if not args:
         printhelp=True
@@ -582,7 +592,7 @@ def cmdline(args):
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
-                if arg[0] in ['-h','--help']:
+                if arg[0] in ('-h','--help'):
                     printhelp=True
                 elif arg[0]=='--toWavelet':
                     if len(arg)>1:
@@ -609,10 +619,13 @@ def cmdline(args):
         print('Usage:')
         print('  numberSpaces.py img.jpg [options]')
         print('Options:')
-        print('   --toWavelet[=wavelet] ....... where value can be things like haar or mortlet')
-        print('   --fromWavelet[=wavelet] ..... where value can be things like haar or mortlet')
-        print('   --show ...................... show the image')
-        print('   --save[=filename] ........... save the image (default is to save over the last filename)')
+        print('   --toWavelet[=wavelet] ...... where value can be things like')
+        print('                                haar or mortlet')
+        print('   --fromWavelet[=wavelet] .... where value can be things like')
+        print('                                haar or mortlet')
+        print('   --show ..................... show the image')
+        print('   --save[=filename] .......... save the image')
+        print('                   (default is to save over the last filename)')
 
 
 if __name__=='__main__':

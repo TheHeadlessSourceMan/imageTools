@@ -10,15 +10,19 @@ import re
 __UNIT_SPLIT_RE__=re.compile('([0-9.-]*)(.*)')
 
 
-def convertMeasurements(fromValue:Union[float,str],toUnits:Union[str,None]=None,
-    fromUnits:Union[str,None]=None,ppi:int=72)->float:
+def convertMeasurements(
+    fromValue:Union[float,str],
+    toUnits:Union[str,None]=None,
+    fromUnits:Union[str,None]=None,
+    ppi:int=72
+    )->float:
     """
     Convert from one type of graphical measurement units to another
 
     :param fromValue: can be numeric or text.  If text, it can contain
         input units (set fromUnits=None)
-    :param toUnits: units to convert to.  If there are no units given, asssume pixels
-    :param fromUnits: units to convert from. If None, derive units from fromValue.
+    :param toUnits: units to convert to.  If no units given, asssume pixels
+    :param fromUnits: units to convert from. If None, derive from fromValue.
         If there are no units given anywhere, asssume pixels
     :param ppi: required for converting from screen to actual size
         (make sure this is correct for the display mechanism!)
@@ -46,7 +50,7 @@ def convertMeasurements(fromValue:Union[float,str],toUnits:Union[str,None]=None,
         'in':1,'inches':1,'inch':1,'"':1,
         'cm':2.45,'centimeter':2.45,'centimeters':2.45,
         'mm':24.5,'millimeters':24.5,'millimeter':24.5,
-        'pt':72,'point':72,'points':72, # TRIVIA: in the days of hand-set type, this was 72.27!
+        'pt':72,'point':72,'points':72, # TRIVIA: in the days of hand-set type, this was 72.27! # noqa: E501
         'em':72,'ems':72,
         'en':144,'ens':144,
         'px':ppi,'pixel':ppi,'pixels':ppi,

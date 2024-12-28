@@ -3,36 +3,37 @@
 """
 This is an experimental extension of PIL images allowing advanced access
 """
-from typing import *
+import typing
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-from PIL import Image
-from .imageRepr import defaultLoader
+import PIL.Image
+from .imageRepr import defaultLoader,numpyArray
 from .bounds import Bounds
-from .colorSpaces import *
+from .colorSpaces import grayscale
+from .numberSpaces import numberspaceTransform
 
 
-class PilPlusImage(Image.Image,Bounds):
+class PilPlusImage(PIL.Image.Image,Bounds):
     """
     This is an experimental extension of PIL images allowing advanced access
     """
 
-    ANTIALIAS=Image.ANTIALIAS
-    BILINEAR=Image.BILINEAR
-    BICUBIC=Image.BICUBIC
-    LINEAR=Image.LINEAR
-    LANCZOS=Image.LANCZOS
-    NEAREST=Image.NEAREST
+    ANTIALIAS=PIL.Image.ANTIALIAS
+    BILINEAR=PIL.Image.BILINEAR
+    BICUBIC=PIL.Image.BICUBIC
+    LINEAR=PIL.Image.LINEAR
+    LANCZOS=PIL.Image.LANCZOS
+    NEAREST=PIL.Image.NEAREST
 
     def __init__(self,image=None,imageLoader=None):
         self.imageLoader=imageLoader
         self._image=None
-        Image.Image.__init__(self)
+        PIL.Image.Image.__init__(self)
         Bounds.__init__(self)
         self._activeChannels={}
         if image is not None:
@@ -48,8 +49,8 @@ class PilPlusImage(Image.Image,Bounds):
             return img.width
         return 0
     @w.setter
-    def w(self,w):
-        if w is None or w is 0:
+    def w(self,w:float):
+        if w is None or w==0:
             self.image=None
         else:
             img=self.image
@@ -66,8 +67,8 @@ class PilPlusImage(Image.Image,Bounds):
             return img.height
         return 0
     @h.setter
-    def h(self,h):
-        if h is None or h is 0:
+    def h(self,h:float):
+        if h is None or h==0:
             self.image=None
         else:
             img=self.image
@@ -75,13 +76,13 @@ class PilPlusImage(Image.Image,Bounds):
                 self.image=img.resize((img.width,h))
 
     @property
-    def size(self)->Tuple[float,float]:
+    def size(self)->typing.Tuple[float,float]:
         """
         changing size value changes the image size
         """
         return self.image.size
     @size.setter
-    def size(self,size):
+    def size(self,size:typing.Tuple[float,float]):
         if self.image is not None:
             self.image=self.image.resize(size)
 
@@ -94,11 +95,12 @@ class PilPlusImage(Image.Image,Bounds):
         """
         ret=self
         predicate=None
-        mathstring=mathstring.split('.') # TODO: this could get confused with decimals.
+        mathstring=mathstring.split('.') # TODO: could get confused with decimals.
         for txstep in mathstring:
             if predicate is not None:
                 txstep=predicate+'.'+txstep
-                ret=numberspaceTransform(ret,txstep,invert=False,complex=False,level=None,mode=None)
+                ret=numberspaceTransform(
+                    ret,txstep,invert=False,complex=False,level=None,mode=None)
             else:
                 ret=self.getChannel(txstep)
         return ret
@@ -108,7 +110,9 @@ class PilPlusImage(Image.Image,Bounds):
         get a channel in floating point form
         """
         if channelId not in self._activeChannels:
-            if channelId in ['r','g','b'] or (channelId=='a' and len(self._activeChannels)<2):
+            if channelId in ('r','g','b') \
+                or (channelId=='a' and len(self._activeChannels)<2):
+                #
                 if 'v' in self._activeChannels:
                     return self._activeChannels['v']
                 res=numpyArray(self.image,floatingPoint=True,loader=None)
@@ -143,9 +147,12 @@ class PilPlusImage(Image.Image,Bounds):
             "min" - min of all channels
             "avg" - average of all channels
             "HSV" or "median" - average of max and min
-            "app" - weighted average used by most image applications (photoshop,gimp,...)
-            "BT.709" - [default] weighted average specified by ITU-R "luma" specification BT.709
-            "BT.601" - weighted average specified by ITU-R spec BT.601 used by video formats
+            "app" - weighted average used by most image applications
+                (photoshop,gimp,...)
+            "BT.709" - [default] weighted average specified by
+                ITU-R "luma" specification BT.709
+            "BT.601" - weighted average specified by
+                ITU-R spec BT.601 used by video formats
             [%R,%G,%B] - array of weight values
 
         NOTE:
@@ -167,9 +174,10 @@ class PilPlusImage(Image.Image,Bounds):
             pass
         elif isinstance(image,PilPlusImage):
             image=image.image
-        elif not isinstance(image,Image.Image):
+        elif not isinstance(image,PIL.Image.Image):
             if not hasattr(self,'imageLoader'):
-                raise Exception(str(self.__class__.__name__)+str(dir(self)))
+                msg=str(self.__class__.__name__)+str(dir(self))
+                raise Exception(msg)
             if self.imageLoader is not None:
                 image=self.imageLoader(image)
             else:
@@ -185,7 +193,7 @@ class PilPlusImage(Image.Image,Bounds):
     @im.setter
     def im(self,im):
         if self._image is None:
-            self._image=Image.Image()
+            self._image=PIL.Image.Image()
         self.image.im=im
 
     @property
@@ -199,7 +207,7 @@ class PilPlusImage(Image.Image,Bounds):
             return self.image.filename
         return None
     @filename.setter
-    def filename(self,filename):
+    def filename(self,filename:str):
         self.load(filename)
 
     @property
@@ -209,11 +217,14 @@ class PilPlusImage(Image.Image,Bounds):
         """
         return self.image.mode
     @mode.setter
-    def mode(self,mode):
+    def mode(self,mode:str):
         if hasattr(self,'_image'):
             self.image.mode=mode
 
-    def decode(self,data,imageType=None,useBase64=False):
+    def decode(self,
+        data:bytes,
+        imageType:typing.Optional[str]=None,
+        useBase64:bool=False):
         """
         decode the data bytes
         """
@@ -223,10 +234,17 @@ class PilPlusImage(Image.Image,Bounds):
             import base64
             data=base64.b64decode(data)
         f=io.BytesIO(data)
-        Image.open(f)
+        if imageType is not None:
+            img=PIL.Image.open(f,formats=[imageType])
+        else:
+            img=PIL.Image.open(f)
         f.close()
+        return img
 
-    def encode(self,asImageType=None,useBase64=False):
+    def encode(self,
+        asImageType:typing.Optional[str]=None,
+        useBase64:bool=False
+        )->bytes:
         """
         encode into bytes
         """
@@ -252,7 +270,7 @@ class PilPlusImage(Image.Image,Bounds):
         data=self.encode(mimeType,useBase64=True)
         return "data:%s;base64,%s"%(mimeType,data.decode('ascii'))
 
-    def assign(self,sizeOrImage):
+    def assign(self,sizeOrImage)->None:
         """
         assign this image to another image, or a certain size
         """
@@ -260,7 +278,7 @@ class PilPlusImage(Image.Image,Bounds):
             Bounds.assign(self,sizeOrImage)
         elif isinstance(sizeOrImage,PilPlusImage):
             self.image=sizeOrImage.image
-        elif isinstance(sizeOrImage,Image.Image):
+        elif isinstance(sizeOrImage,PIL.Image.Image):
             self.image=sizeOrImage
         else:
             Bounds.assign(self,sizeOrImage)
@@ -269,7 +287,11 @@ class PilPlusImage(Image.Image,Bounds):
         """
         string representation of this object
         """
-        return 'Image '+Bounds.__repr__(self)+' mode:'+self.mode+' source:'+str(self.filename)
+        return '\n\t'.join((
+            f'Image {Bounds.__repr__(self)}',
+            f'mode: {self.mode}',
+            f'source: {self.filename}'
+            ))
 
     @property
     def R(self):
@@ -441,7 +463,7 @@ class PilPlusImage(Image.Image,Bounds):
     #\treturn self.image.width(*args)
 
 
-def cmdline(args):
+def cmdline(args:typing.List[str])->int:
     """
     Run the command line
 
@@ -465,6 +487,8 @@ def cmdline(args):
         print('  pilPlus.py [options]')
         print('Options:')
         print('   NONE')
+        return -1
+    return 0
 
 
 if __name__=='__main__':

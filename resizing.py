@@ -3,24 +3,26 @@
 """
 Contains a litany of resizing/pasting/cropping routines
 """
+import typing
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-import scipy
+import scipy # type: ignore
 from PIL import Image, ImageOps
 from . import imageRepr
-from .bounds import *
+from .bounds import Bounds
 
 
 def imageBorder(img,thickness,edgeFill="#ffffff00"):
     """
     Add a border of thickness pixels around the image
 
-    :param img: the image to add a border to can be pil image, numpy array, or whatever
+    :param img: the image to add a border to can be pil image,
+        numpy array, or whatever
     :param thickness: the border thickness in pixels.  Can be:
         int - border all the way around
         (w_border,h_border) - add border this big to each side
@@ -39,32 +41,42 @@ def imageBorder(img,thickness,edgeFill="#ffffff00"):
         thickness=(thickness[0],thickness[1],thickness[0],thickness[1])
     thickness=[int(t) for t in thickness]
     img=imageRepr.pilImage(img)
-    newSize=(int(img.size[0]+thickness[0]+thickness[2]),int(img.size[1]+thickness[1]+thickness[3]))
+    newSize=(
+        int(img.size[0]+thickness[0]+thickness[2]),
+        int(img.size[1]+thickness[1]+thickness[3]))
     if edgeFill=='mirror':
         newImage=Image.new(img.mode,newSize)
         # top
-        fill=ImageOps.flip(img.crop((0,0,img.width,thickness[1])))
+        fill=ImageOps.flip(img.crop(
+            (0,0,img.width,thickness[1])))
         newImage.paste(fill,(thickness[1],0))
         # bottom
-        fill=ImageOps.flip(img.crop((0,img.height-thickness[2],img.width,img.height)))
+        fill=ImageOps.flip(img.crop(
+            (0,img.height-thickness[2],img.width,img.height)))
         newImage.paste(fill,(thickness[2],img.height+thickness[2]))
         # left
-        fill=ImageOps.mirror(img.crop((0,0,thickness[0],img.height)))
+        fill=ImageOps.mirror(img.crop(
+            (0,0,thickness[0],img.height)))
         newImage.paste(fill,(0,thickness[0]))
         # right
-        fill=ImageOps.mirror(img.crop((img.width-thickness[3],0,img.width,img.height)))
+        fill=ImageOps.mirror(img.crop(
+            (img.width-thickness[3],0,img.width,img.height)))
         newImage.paste(fill,(img.width+thickness[3],thickness[3]))
         # top-left corner
-        #fill=ImageOps.mirror(ImageOps.flip(img.crop((0,0,thickness,thickness))))
+        #fill=ImageOps.mirror(ImageOps.flip(img.crop(
+        #   (0,0,thickness,thickness))))
         #newImage.paste(fill,(0,0))
         # top-right corner
-        #fill=ImageOps.mirror(ImageOps.flip(img.crop((img.width-thickness,0,img.width,thickness))))
+        #fill=ImageOps.mirror(ImageOps.flip(img.crop(
+        #   (img.width-thickness,0,img.width,thickness))))
         #newImage.paste(fill,(img.width+thickness,0))
         # bottom-left corner
-        #fill=ImageOps.mirror(ImageOps.flip(img.crop((0,img.height-thickness,thickness,img.height))))
+        #fill=ImageOps.mirror(ImageOps.flip(img.crop(
+        #   (0,img.height-thickness,thickness,img.height))))
         #newImage.paste(fill,(0,img.height+thickness))
         # bottom-right corner
-        #fill=ImageOps.mirror(ImageOps.flip(img.crop((img.width-thickness,img.height-thickness,img.width,img.height))))
+        #fill=ImageOps.mirror(ImageOps.flip(img.crop(
+        #   (img.width-thickness,img.height-thickness,img.width,img.height))))
         #newImage.paste(fill,(img.width+thickness,img.height+thickness))
     elif edgeFill=='repeat':
         newImage=Image.new(img.mode,newSize)
@@ -90,34 +102,54 @@ def imageBorder(img,thickness,edgeFill="#ffffff00"):
         fill=img.crop((0,img.height-thickness,thickness,img.height))
         newImage.paste(fill,(img.width+thickness,0))
         # bottom-right corner
-        fill=img.crop((img.width-thickness,img.height-thickness,img.width,img.height))
+        fill=img.crop((
+            img.width-thickness,
+            img.height-thickness,
+            img.width,
+            img.height))
         newImage.paste(fill,(0,0))
     elif edgeFill=='clamp':
         newImage=Image.new(img.mode,newSize)
         # top
-        fill=img.crop((0,0,img.width,1)).resize((img.width,thickness[1]),resample=Image.NEAREST)
+        fill=img.crop((0,0,img.width,1)).resize(
+            (img.width,thickness[1]),
+            resample=Image.NEAREST)
         newImage.paste(fill,(thickness[1],0))
         # bottom
-        fill=img.crop((0,img.height-1,img.width,img.height)).resize((img.width,thickness[2]),resample=Image.NEAREST)
+        fill=img.crop((0,img.height-1,img.width,img.height)).resize(
+            (img.width,thickness[2]),
+            resample=Image.NEAREST)
         newImage.paste(fill,(thickness[2],img.height+thickness[2]))
         # left
-        fill=img.crop((0,0,1,img.height)).resize((thickness[0],img.height),resample=Image.NEAREST)
+        fill=img.crop((0,0,1,img.height)).resize(
+            (thickness[0],img.height),
+            resample=Image.NEAREST)
         newImage.paste(fill,(0,thickness[0]))
         # right
-        fill=img.crop((img.width-1,0,img.width,img.height)).resize((thickness[3],img.height),resample=Image.NEAREST)
+        fill=img.crop((img.width-1,0,img.width,img.height)).resize(
+            (thickness[3],img.height),
+            resample=Image.NEAREST)
         newImage.paste(fill,(img.width+thickness[3],thickness[3]))
         # TODO: corners
         # top-left corner
-        fill=img.crop((0,0,1,1)).resize((thickness,thickness),resample=Image.NEAREST)
+        fill=img.crop((0,0,1,1)).resize(
+            (thickness,thickness),
+            resample=Image.NEAREST)
         newImage.paste(fill,(0,0))
         # top-right corner
-        fill=img.crop((img.width-1,0,img.width,1)).resize((thickness,thickness),resample=Image.NEAREST)
+        fill=img.crop((img.width-1,0,img.width,1)).resize(
+            (thickness,thickness),
+            resample=Image.NEAREST)
         newImage.paste(fill,(img.width+thickness,0))
         # bottom-left corner
-        fill=img.crop((0,img.height-1,1,img.height)).resize((thickness,thickness),resample=Image.NEAREST)
+        fill=img.crop((0,img.height-1,1,img.height)).resize(
+            (thickness,thickness),
+            resample=Image.NEAREST)
         newImage.paste(fill,(0,img.height+thickness))
         # bottom-right corner
-        fill=img.crop((img.width-1,img.height-1,img.width,img.height)).resize((thickness,thickness),resample=Image.NEAREST)
+        fill=img.crop((img.width-1,img.height-1,img.width,img.height)).resize(
+            (thickness,thickness),
+            resample=Image.NEAREST)
         newImage.paste(fill,(img.width+thickness,img.height+thickness))
     else:
         newImage=Image.new(img.mode,newSize,edgeFill)
@@ -136,7 +168,8 @@ def extendImageCanvas(pilImage,newBounds,edgeFill=(128,128,128,0)):
 
     :param pilImage: the image to move
     :param newBounds: - (w,h) or (x,y,w,h) or Bounds object
-    :param edgeFill: color to use when extending the canvas (automatically choses image mode based on this color)
+    :param edgeFill: color to use when extending the canvas
+        (automatically choses image mode based on this color)
 
     :return new PIL image:
 
@@ -151,7 +184,10 @@ def extendImageCanvas(pilImage,newBounds,edgeFill=(128,128,128,0)):
     else:
         x,y,w,h=newBounds.x,newBounds.y,newBounds.w,newBounds.h
     if w<pilImage.width or h<pilImage.height:
-        raise Exception('Cannot "extend" canvas to smaller size. ('+str(pilImage.width)+','+str(pilImage.height)+') to ('+str(w)+','+str(h)+')')
+        fromSize=f'({pilImage.width},{pilImage.height})'
+        toSize=f'({w},{h})'
+        msg=f'Cannot "extend" canvas to smaller size. {fromSize} to {toSize}'
+        raise ValueError(msg)
     if not isinstance(edgeFill,(list,tuple)) or len(edgeFill)<2:
         mode="L"
     elif len(edgeFill)<4:
@@ -164,28 +200,39 @@ def extendImageCanvas(pilImage,newBounds,edgeFill=(128,128,128,0)):
     y=max(0,h/2-pilImage.height/2)
     if imageRepr.hasAlpha(mode):
         if not imageRepr.hasAlpha(pilImage):
-            pilImage=pilImage.convert(imageRepr.maxMode(pilImage,requireAlpha=True))
+            pilImage=pilImage.convert(
+                imageRepr.maxMode(pilImage,requireAlpha=True))
         img.alpha_composite(pilImage,dest=(int(x),int(y)))
     else:
         img.paste(pilImage,box=(int(x),int(y)))
     return img
 
 
-def paste(image,overImage,position=(0,0),resize=True):
+def paste(
+    image,
+    overImage,
+    position:typing.Tuple[float,float]=(0,0),
+    resize:bool=True):
     """
-    A simple, dumb, paste operation like PIL's paste, only automatically uses alpha
+    A simple, dumb, paste operation like PIL's paste,
+    only automatically uses alpha
 
     :param image: the image to be pasted on top (if None, returns overImage)
-    :param overImage: the image will be pasted over the top of this image (if None, returns image)
-    :param position: the position to place the new image, relative to overImage (can be negative)
-    :param resize: allow the resulting image to be resized if overImage extends beyond its bounds
+    :param overImage: the image will be pasted over the top of this image
+        (if None, returns image)
+    :param position: the position to place the new image,
+        relative to overImage (can be negative)
+    :param resize: allow the resulting image to be resized if overImage
+        extends beyond its bounds
         TODO: need to implement this
 
     :returns: a combined image, or None if both image and overImage are None
 
-    NOTE: this is effectively the same as doing blend(image,'normal',overImage,position,resize)
+    NOTE: this is effectively the same as doing
+        blend(image,'normal',overImage,position,resize)
 
-    IMPORTANT: the image bits may be altered.  To prevent this, set image.immutable=True
+    IMPORTANT: the image bits may be altered.
+        To prevent this, set image.immutable=True
     """
     image=imageRepr.pilImage(image)
     if image is None:
@@ -194,19 +241,27 @@ def paste(image,overImage,position=(0,0),resize=True):
         if position==(0,0): # no change
             return image
         # create a blank background
-        overImage=Image.new(imageRepr.maxMode(image,requireAlpha=True),(int(image.width+position[0]),int(image.height+position[1])))
-    elif (position[0]<0) or (position[1]<0) or (image.width+position[0]>overImage.width) or (image.height+position[1]>overImage.height):
+        overImage=Image.new(
+            imageRepr.maxMode(image,requireAlpha=True),
+            (int(image.width+position[0]),
+            int(image.height+position[1])))
+    elif (position[0]<0) \
+        or (position[1]<0) \
+        or (image.width+position[0]>overImage.width) \
+        or (image.height+position[1]>overImage.height):
         # resize the overImage if necessary
         newImg=Image.new(
-            size=(int(max(image.width+position[0],overImage.width)),int(max(image.height+position[1],overImage.height))),
+            size=(
+                int(max(image.width+position[0],overImage.width)),
+                int(max(image.height+position[1],overImage.height))),
             mode=imageRepr.maxMode(image,overImage,requireAlpha=True))
-        # if we are negative position, we need to shift over by positive that amount
+        # if we are negative position, we need to shift back by that amount
         positionShift=(abs(min(position[0],0)),abs(min(position[1],0)))
         position=(max(0,position[0]),max(0,position[1]))
         paste(overImage,newImg,positionShift)
         overImage=newImg
     elif hasattr(overImage,'immutable') and overImage.immutable:
-        # if it is flagged immutable, create a copy that we are allowed to change
+        # if flagged immutable, create a copy that we are allowed to change
         overImage=overImage.copy()
     # do the deed
     position=(int(position[0]),int(position[1]))
@@ -249,8 +304,8 @@ def getSize(ofThis):
 
 def makeSameSize(img1,img2,edgeFill='#ffffff00'):
     """
-    pad the images with so they are the same size.  Commonly used for things like
-    resizing before blending
+    pad the images with so they are the same size.  Commonly used for
+    things like resizing before blending
 
     :param img1: first image
     :param img2: second image
@@ -265,9 +320,11 @@ def makeSameSize(img1,img2,edgeFill='#ffffff00'):
     size1=getSize(img1)
     size2=getSize(img2)
     if size1[0]<size2[0] or size1[0]<size2[0]:
-        img1=extendImageCanvas(img1,(max(size1[0],size2[0]),max(size1[1],size2[1])),edgeFill)
+        img1=extendImageCanvas(img1,
+            (max(size1[0],size2[0]),max(size1[1],size2[1])),edgeFill)
     if size2[0]<size1[0] or size2[0]<size1[0]:
-        img2=extendImageCanvas(img2,(max(size1[0],size2[0]),max(size1[1],size2[1])),edgeFill)
+        img2=extendImageCanvas(img2,
+            (max(size1[0],size2[0]),max(size1[1],size2[1])),edgeFill)
     return img1,img2
 
 
@@ -278,7 +335,8 @@ def bestBounds(image,size,regionOfInterest=None):
 
     :param image: any supported image type
     :param size: can be anything that getSize() supports
-    :param regionOfInterest: a black and white mask used to liquid resize images
+    :param regionOfInterest: a black and white mask used to
+        liquid resize images
         (if =True, then auto-calculate as necessary)
 
     :return (x,y,x2,y2):
@@ -329,14 +387,16 @@ def crop(image,size,regionOfInterest=None):
 
     :param image: any supported image type
     :param size: can be anything that getSize() supports
-    :param regionOfInterest: a black and white mask used to liquid resize images
+    :param regionOfInterest: black and white mask used to liquid resize images
         (if =True, then auto-calculate as necessary)
 
     :returns: image of the cropped size (or smaller)
         can return None if selection is of zero size
     """
     image=imageRepr.numpyArray(image)
-    if not isinstance(size,(list,tuple)) and (not isinstance(size,np.ndarray) or len(size.shape)>1):
+    if not isinstance(size,(list,tuple)) \
+        and (not isinstance(size,np.ndarray) or len(size.shape)>1):
+        #
         size=getSize(size)
     if isinstance(size,tuple): # make editable
         size=[wh for wh in size]
@@ -353,13 +413,17 @@ def stretch(image,toSize,interpolation=None,regionOfInterest=None):
     """
     stretch an image to the given size
 
-    :param toSize: the actual size to stretch to.  If one value is None, then the aspect ratio is maintained
-    :param interpolation: 'nearest','lanczos','bilinear','bicubic','cubic','liquid' or a numeric order for spline interpolation
-        if None, attempt to choose the best.  Generally you should keep it on that None or 'liquid'.
-    :param regionOfInterest: a black and white mask used to liquid resize images
+    :param toSize: the actual size to stretch to.  If one value is None,
+        then the aspect ratio is maintained
+    :param interpolation: 'nearest','lanczos','bilinear','bicubic','cubic',
+        'liquid' or a numeric order for spline interpolation
+        if None, attempt to choose the best.  Generally you should keep it
+        on that None or 'liquid'.
+    :param regionOfInterest: black and white mask used to liquid resize images
         (if =True, then auto-calculate as necessary)
 
-    NOTE: if toSize matches the aspect ratio of the image, will ALWAYS change to biliniar for speed.
+    NOTE: if toSize matches the aspect ratio of the image, will ALWAYS change
+        to biliniar for speed.
 
     TODO: liquid rescale not yet implemented
     """
@@ -398,7 +462,10 @@ def stretch(image,toSize,interpolation=None,regionOfInterest=None):
                 resample=Image.BICUBIC
             elif interpolation=='lanczos':
                 resample=Image.LANCZOS
-            return imageRepr.numpyArray(imageRepr.pilImage(image).resize((int(toSize[0]),int(toSize[1])),resample))
+            return imageRepr.numpyArray(
+                imageRepr.pilImage(image).resize(
+                    (int(toSize[0]),int(toSize[1])),
+                    resample))
         if interpolation=='liquid':
             if regionOfInterest is True:
                 from . import autoInterest
@@ -406,25 +473,42 @@ def stretch(image,toSize,interpolation=None,regionOfInterest=None):
             raise NotImplementedError()
     interpolation=int(interpolation)
     scale=(size[0]/toSize[0],size[1]/toSize[1])
-    return scipy.ndimage.zoom(image,scale,order=interpolation,interpolation='reflect')
+    return scipy.ndimage.zoom(
+        image,scale,order=interpolation,interpolation='reflect')
 
 
-def scale(image,toSize=None,scale=None,regionOfInterest=None,aspect='stretch',interpolation=None,exactSize=True,edgeFill="#ffffff00"):
+def scale(
+    image,
+    toSize=None,
+    scale=None,
+    regionOfInterest=None,
+    aspect:str='stretch',
+    interpolation=None,
+    exactSize:bool=True,
+    edgeFill="#ffffff00"):
     """
-    :param image: image to scale.  Can be PIL image, numpy array, path, or supported url
+    :param image: image to scale.  Can be PIL image, numpy array, path, or
+        supported url
     :param toSize: scale to fit a given size.  If missing, must have scale.
     :param scale: scale by a percent. If missing, must have toSize.
     :param aspect: can be:
         'stretch' - do not maintain aspect
-        'minimize' - fit entirely within the new image (if exactSize then fill any gaps with edgeFill)
-        'maximize' - grow to fill entire new image (if exactSize then crop to the requested size)
-    :param interpolation: 'nearest','lanczos','bilinear','bicubic','cubic','liquid' or a numeric order for spline interpolation
-        if None, attempt to choose the best.  Generally you should keep it on that None or 'liquid'.
-    :param exactSize: crop and/or fill to fit the exact size specified.  If False, then aspect!='stretch' can create
-        an image of a different size.
-    :param regionOfInterest: a black and white mask used to smartly crop or liquid resize images If =True, then auto-generate.
+        'minimize' - fit entirely within the new image (if exactSize then fill
+            any gaps with edgeFill)
+        'maximize' - grow to fill entire new image (if exactSize then crop to
+            the requested size)
+    :param interpolation: 'nearest','lanczos','bilinear','bicubic','cubic',
+        'liquid' or a numeric order for spline interpolation
+        if None, attempt to choose the best.  Generally you should keep it
+        on that None or 'liquid'.
+    :param exactSize: crop and/or fill to fit the exact size specified.
+        If False, then aspect!='stretch' can create an image of a
+        different size.
+    :param regionOfInterest: a black and white mask used to smartly crop or
+        liquid resize images If =True, then auto-generate.
     :param edgeFill: defines how to extend.  It can be:
-        ignore - ignore edge. Make the image the closest size and ignore if it isn't the size requested
+        ignore - ignore edge. Make the image the closest size and ignore if it
+            isn't the size requested
         mirror - reflect the pixels leading up to the border
         repeat - repeat the image over again (useful with repeating textures)
         clamp - streak last pixels out to edge
@@ -462,7 +546,7 @@ def scale(image,toSize=None,scale=None,regionOfInterest=None,aspect='stretch',in
             else:
                 tmpSize=(toSize[1]*aspectRatio,toSize[1])
         else:
-            raise Exception('ERR: Unknown aspect setting')
+            raise IndexError('ERR: Unknown aspect setting')
         if regionOfInterest is True:
             from . import autoInterest
             regionOfInterest=autoInterest.interest(image)
@@ -490,7 +574,6 @@ def cmdline(args):
     if not args:
         printhelp=True
     else:
-        img=None
         edgeFill=(128,128,128,0)
         aspect='stretch'
         regionOfInterest=None
@@ -520,7 +603,8 @@ def cmdline(args):
                     if len(arg)>1:
                         if arg[1].lower() in ['true','t','1','yes','y']:
                             regionOfInterest=True
-                        elif arg[1].lower() in ['false','f','0','no','n','none']:
+                        elif arg[1].lower() in \
+                            ['false','f','0','no','n','none']:
                             regionOfInterest=None
                         else:
                             regionOfInterest=arg[1]
@@ -533,10 +617,13 @@ def cmdline(args):
                     if len(arg)>1:
                         toScale=None
                         toSize=[float(x) for x in arg[1].split(',')]
-                        if (toSize[0] is not None and toSize[0]<1.0) or (toSize[1] is not None and toSize[1]<1.0):
+                        if (toSize[0] is not None and toSize[0]<1.0) \
+                            or (toSize[1] is not None and toSize[1]<1.0):
+                            #
                             toScale=toSize
                             toSize=None
-                        image=scale(image,toSize,toScale,regionOfInterest,aspect,interpolation,exactSize,edgeFill)
+                        image=scale(image,toSize,toScale,regionOfInterest,
+                            aspect,interpolation,exactSize,edgeFill)
                 elif arg[0]=='--crop':
                     if len(arg)>1:
                         size=[float(x) for x in arg[1].split(',')]
@@ -544,7 +631,8 @@ def cmdline(args):
                 elif arg[0]=='--stretch':
                     if len(arg)>1:
                         size=[float(x) for x in arg[1].split(',')]
-                        image=stretch(image,size,interpolation,regionOfInterest)
+                        image=stretch(
+                            image,size,interpolation,regionOfInterest)
                 elif arg[0]=='--bestBounds':
                     if len(arg)>1:
                         size=[float(x) for x in arg[1].split(',')]
@@ -562,33 +650,47 @@ def cmdline(args):
         print('Usage:')
         print('  resizing.py image.jpg [options] [commands]')
         print('Options:')
-        print('   --edgeFill= .............. defines how to extend.  It can be:')
-        print('\t  ignore  - ignore edge. Make the image the closest size and ignore if it isn\'t the size requested')
+        print('   --edgeFill= .............. how to extend. It can be:')
+        print('\t  ignore  - ignore edge. Make the image the closest size and')
+        print('\t            ignore if it isn\'t the size requested')
         print('\t  mirror  - reflect the pixels leading up to the border')
-        print('\t  repeat  - repeat the image over again (useful with repeating textures)')
+        print('\t  repeat  - repeat the image over again')
+        print('\t            (useful with repeating textures)')
         print('\t  clamp   - streak last pixels out to edge')
         print('\t  [color] - simply fill with the given color')
-        print('   --aspect= ................. what to do about image aspect ratio. can be:')
+        print('   --aspect= ................. what to do about image aspect')
+        print('                               ratio. can be:')
         print('\t  stretch - do not maintain aspect')
-        print('\t  minimize - fit entirely within the new image (if exactSize then fill any gaps with edgeFill)')
-        print('\t  maximize - grow to fill entire new image (if exactSize then crop to the requested size)')
+        print('\t  minimize - fit entirely within the new image')
+        print('\t             (if exactSize then fill any gaps with edgeFill)')
+        print('\t  maximize - grow to fill entire new image (if exactSize')
+        print('\t             then crop to the requested size)')
         print('   --interpolation= .......... how to resize pixels')
-        print('\t  nearest,lanczos,bilinear,bicubic,cubic,liquid or a numeric order for spline interpolation')
-        print('\t  If mssing, attempt to choose the best.  Generally you should keep it on that or liquid')
-        print('   --exactSize=[T/F] ......... crop and/or fill to fit the exact size specified.')
-        print('\t  If False, then maintainAspect=True can create an image of a different size.')
-        print('   --regionOfInterest= ....... a black and white mask used to liquid resize images')
+        print('\t  nearest,lanczos,bilinear,bicubic,cubic,liquid or a numeric')
+        print('\t  order for spline interpolation')
+        print('\t  If mssing, attempt to choose the best.  Generally you')
+        print('    should keep it on that or liquid')
+        print('   --exactSize=[T/F] ......... crop and/or fill to fit the')
+        print('    exact size specified.')
+        print('\t  If False, then maintainAspect=True can create an image of')
+        print('\t a different size.')
+        print('   --regionOfInterest= ....... a black and white mask used to')
+        print('   liquid resize images')
         print('\t  (or =True, then auto-calculate as necessary)')
         print('Commands:')
-        print('   --imageBorder=thick .. expand the image with a border - either a size, (horiz,vert), or (n,s,e,w)')
-        print('   --scale=amtX,amtY .... if amt<1.0, then scale by percent, otherwise scale to exact size')
+        print('   --imageBorder=thick .. expand the image with a border - ')
+        print('     either a size, (horiz,vert), or (n,s,e,w)')
+        print('   --scale=amtX,amtY .... if amt<1.0, then scale by percent,')
+        print('     otherwise scale to exact size')
         print('   --crop=w,h ........... crop to w,h')
         print('   --stretch=w,h ........ stretch to w,h')
-        print('   --bestBounds=w,h ..... figure out and print(the best bounds (for a region of interest)')
+        print('   --bestBounds=w,h ..... figure out and print(the best bounds')
+        print('     (for a region of interest)')
         print('   --show ............... show the working image')
         print('   --save=filename ...... save the working image')
         print('Notes:')
-        print('   * All filenames can also take file:// http:// https:// ftp:// urls')
+        print('   * All filenames can also take urle like')
+        print('      file:// http:// https:// ftp://')
 
 
 if __name__=='__main__':

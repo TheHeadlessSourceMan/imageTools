@@ -6,14 +6,14 @@ Implementation of photoshop/gimp blend modes in python.
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
 from PIL import Image, ImageChops, ImageEnhance
 from .helper_routines import *
 from .resizing import *
-from .colorSpaces import *
+from .colorSpaces import hsv2rgbArray,rgb2hsvArray
 
 
 def adjustOpacity(image,amount:float=1.0):
@@ -154,22 +154,32 @@ def generalBlend(topImage,mathStr,botImage,opacity=1.0,position=(0,0),resize=Tru
     tokenizer=re.compile(r"([!<>=|&]+|[,()%*-+/])")
     equation=tokenizer.split(equation)
     replacements={
-            'min':'np.minimum','max':'np.maximum',
-            'abs':'np.abs','sqrt':'np.sqrt','pow':'np.pow',
-            'count':'np.count','sum':'np.sum',
-            'sin':'np.sin','cos':'np.cos','tan':'np.tan',
-            'if':'np.where',
-            'top.RGBA':'topRGBA[:,:,:]','top.RGB':'topRGBA[:,:,:3]','top.R':'topRGBA[:,:,0]','top.G':'topRGBA[:,:,1]','top.B':'topRGBA[:,:,2]','top.A':'topRGBA[:,:,3]',
-            'top.CMYK':'topCMYK[:,:,:]','top.CMY':'topCMYK[:,:,:3]','top.C':'topCMYK[:,:,0]','top.M':'topCMYK[:,:,1]','top.Y':'topCMYK[:,:,2]','top.K':'topCMYK[:,:,3]',
-            'top.HSV':'topHSV[:,:,:]','top.H':'topHSV[:,:,0]','topS':'topHSV[:,:,1]','topV':'topHSV[:,:,2]',
-            'bottom.RGBA':'bottomRGBA[:,:,:]','bottom.RGB':'bottomRGBA[:,:,:3]','bottom.R':'bottomRGBA[:,:,0]','bottom.G':'bottomRGBA[:,:,1]','bottom.B':'bottomRGBA[:,:,2]','bottom.A':'bottomRGBA[:,:,3]',
-            'bottom.CMYK':'bottomCMYK[:,:,:]','bottom.CMY':'bottomCMYK[:,:,:3]','bottom.C':'bottomCMYK[:,:,0]','bottom.M':'bottomCMYK[:,:,1]','bottom.Y':'bottomCMYK[:,:,2]','bottom.K':'bottomCMYK[:,:,3]',
-            'bottom.HSV':'bottomHSV[:,:,:]','bottom.H':'bottomHSV[:,:,0]','bottom.S':'bottomHSV[:,:,1]','bottom.V':'bottomHSV[:,:,2]',
+        'min':'np.minimum','max':'np.maximum',
+        'abs':'np.abs','sqrt':'np.sqrt','pow':'np.pow',
+        'count':'np.count','sum':'np.sum',
+        'sin':'np.sin','cos':'np.cos','tan':'np.tan',
+        'if':'np.where',
+        'top.RGBA':'topRGBA[:,:,:]','top.RGB':'topRGBA[:,:,:3]',
+        'top.R':'topRGBA[:,:,0]','top.G':'topRGBA[:,:,1]',
+        'top.B':'topRGBA[:,:,2]','top.A':'topRGBA[:,:,3]',
+        'top.CMYK':'topCMYK[:,:,:]','top.CMY':'topCMYK[:,:,:3]',
+        'top.C':'topCMYK[:,:,0]','top.M':'topCMYK[:,:,1]',
+        'top.Y':'topCMYK[:,:,2]','top.K':'topCMYK[:,:,3]',
+        'top.HSV':'topHSV[:,:,:]',
+        'top.H':'topHSV[:,:,0]','topS':'topHSV[:,:,1]','topV':'topHSV[:,:,2]',
+        'bottom.RGBA':'bottomRGBA[:,:,:]','bottom.RGB':'bottomRGBA[:,:,:3]',
+        'bottom.R':'bottomRGBA[:,:,0]','bottom.G':'bottomRGBA[:,:,1]',
+        'bottom.B':'bottomRGBA[:,:,2]','bottom.A':'bottomRGBA[:,:,3]',
+        'bottom.CMYK':'bottomCMYK[:,:,:]','bottom.CMY':'bottomCMYK[:,:,:3]',
+        'bottom.C':'bottomCMYK[:,:,0]','bottom.M':'bottomCMYK[:,:,1]',
+        'bottom.Y':'bottomCMYK[:,:,2]','bottom.K':'bottomCMYK[:,:,3]',
+        'bottom.HSV':'bottomHSV[:,:,:]','bottom.H':'bottomHSV[:,:,0]',
+        'bottom.S':'bottomHSV[:,:,1]','bottom.V':'bottomHSV[:,:,2]',
         }
     for i,val in enumerate(equation):
         if val and val[0] not in r'0123456789,()%*-+/!<>=|&':
             if val not in replacements:
-                raise Exception('ERR: illegal value in equation "'+val+'"')
+                raise ValueError('ERR: illegal value in equation "'+val+'"')
             equation[i]=replacements[val]
     equation='('+(''.join(equation))+')'
     # run the operation and join the results with dstack()
@@ -188,7 +198,9 @@ def generalBlend(topImage,mathStr,botImage,opacity=1.0,position=(0,0),resize=Tru
     # if alpha channel was missing, add one
     if len(final[0][1])<4:
         # calculate the alpha channel
-        comp_alpha=np.maximum(np.minimum(topRGBA[:,:,3],botRGBA[:,:,3])*opacity,shift)
+        comp_alpha=np.maximum(
+            np.minimum(topRGBA[:,:,3],botRGBA[:,:,3])*opacity,
+            shift)
         new_alpha=topRGBA[:,:,3]+(1.0-topRGBA[:,:,3])*comp_alpha
         np.seterr(divide='ignore',invalid='ignore')
         alpha=comp_alpha/new_alpha
@@ -198,7 +210,8 @@ def generalBlend(topImage,mathStr,botImage,opacity=1.0,position=(0,0),resize=Tru
         combined=np.clip(combined,0.0,255.0)
         # clean up and reassemble
         #ratio_rs=
-        final=np.reshape(combined,[combined.shape[0],combined.shape[1],combined.shape[2]])
+        final=np.reshape(combined,[
+            combined.shape[0],combined.shape[1],combined.shape[2]])
         #final=combined*ratio_rs+topRGBA[:,:,:3]*(1.0-ratio_rs)
         final=np.dstack((final,alpha))
     # convert the final result back into a PIL image
@@ -272,21 +285,26 @@ def blend(image,blendMode,overImage,position=(0,0),resize=True):
     def _difference(bottom,top):
         return np.abs(bottom-top)
     def _softLight(bottom,top):
-        # NOTE: strangely both algos do the same thing, but look different than gimp
-        #\tyet the last algo is deliberately backwards, and that's what gimp does.  Is gimp backwards??
+        # NOTE: strangely both algos do the same thing, but look different
+        # than gimp
+        #\tyet the last algo is deliberately backwards, and that's what gimp
+        # does.  Is gimp backwards??
         #def D(x):
         #\treturn np.where(x<=0.25,((16*x-12)*x+4)*x,np.sqrt(x))
-        #return np.where(top<=0.5,bottom-(1.0-2.0*top)*bottom*(1.0-bottom),bottom+(2.0*top-1)*(D(bottom)-bottom))
+        #return np.where(top<=0.5,bottom-(1.0-2.0*top)*bottom*(1.0-bottom),
+        #   bottom+(2.0*top-1)*(D(bottom)-bottom))
         #return (1.0-bottom)*bottom*top+bottom*(1.0-(1.0-bottom)*(1.0-top))
         return (1.0-top)*top*bottom+top*(1.0-(1.0-top)*(1.0-bottom))
     def _exclusion(bottom,top):
         return bottom+top-2.0*bottom*top
     def _subtract(bottom,top):
-        # NOTE:  You'd think the first algo would be correct, but gimp has it the opposite way
+        # NOTE:  You'd think the first algo would be correct, but gimp has it
+        # the opposite way
         #return bottom-top
         return top-bottom
     def _grainExtract(bottom,top):
-        # NOTE:  You'd think the first algo would be correct, but gimp has it the opposite way
+        # NOTE:  You'd think the first algo would be correct, but gimp has it
+        # the opposite way
         #return bottom-top+0.5
         return top-bottom+0.5
     def _grainMerge(bottom,top):
@@ -511,4 +529,3 @@ def cmdline(args):
 if __name__=='__main__':
     import sys
     cmdline(sys.argv[1:])
-

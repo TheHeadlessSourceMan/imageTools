@@ -8,19 +8,20 @@ All networks should be stored within a smartimage in ONNX format.
     http://onnx.ai
     https://github.com/onnx/models
 """
+import typing
 try:
-    import cv2
+    import cv2 # type: ignore
 except ImportError:
     print('ERR: Missing OpenCV')
     print('You can install using:')
     print('   pip install opencv-contrib-python')
     print('Or visit this page if you want to get tricky:')
-    print('   https://www.pyimagesearch.com/opencv-tutorials-resources-guides/')
-from .imageRepr import *
-from .resizing import *
+    print('   https://www.pyimagesearch.com/opencv-tutorials-resources-guides')
+from .imageRepr import numpyArray
+from .resizing import crop
 
 
-def loadNeuralNetwork(filename):
+def loadNeuralNetwork(filename:str):
     """
     load a neural network model from file
 
@@ -58,15 +59,15 @@ def styleTransfer(image,styleNetwork):
         styleNetwork=loadNeuralNetwork(styleNetwork)
     # load the input image, resize it to have a width of 600 pixels, and
     # then grab the image dimensions
-    image = numpyArray(image)
+    image=numpyArray(image)
     #image = imutils.resize(image, width=600)
     image=crop(image,(599,599))
-    imgSize = image.shape[:2]
+    imgSize=image.shape[:2]
     print(image.shape,image[0,0,0])
     # construct a blob from the image, set the input, and then perform a
     # forward pass of the network
-    blob = cv2.dnn.blobFromImage(image, 1.0,imgSize,
-        (103.939, 116.779, 123.680), swapRB=False, crop=False)
+    blob=cv2.dnn.blobFromImage(image,1.0,imgSize,
+        (103.939,116.779,123.680),swapRB=False,crop=False)
     styleNetwork.setInput(blob)
     #start = time.time()
     output = styleNetwork.forward()
@@ -86,7 +87,7 @@ def styleTransfer(image,styleNetwork):
     return output # TODO: reformat first
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
@@ -105,10 +106,11 @@ def cmdline(args):
                     printhelp=True
                 elif arg[0]=='-styleTransfer':
                     if img is None:
-                        raise Exception('ERR: no image to modify')
-                    if len(arg)<2:
-                        raise Exception('ERR: no style specified')
-                    img=styleTransfer(img,os.path.abspath(arg[1]))
+                        print('ERR: no image to modify')
+                    elif len(arg)<2:
+                        print('ERR: no style specified')
+                    else:
+                        img=styleTransfer(img,os.path.abspath(arg[1]))
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
@@ -117,9 +119,12 @@ def cmdline(args):
         print('Usage:')
         print('  neural.py file [options]')
         print('Options:')
-        print('   -styleTransfer=net ...... do a style transfer based on a saved neural network')
+        print('   -styleTransfer=net ...... do a style transfer based')
+        print('                             on a saved neural network')
         print('Notes:')
         print('   supports .t7 torch neural networks and ONNX xml networks')
+        return -1
+    return 0
 
 
 if __name__=='__main__':

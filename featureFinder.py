@@ -9,12 +9,12 @@ import os
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
 try:
-    import cv2
+    import cv2 # type: ignore
     has_opencv=True
 except ImportError:
     has_opencv=False
@@ -30,10 +30,13 @@ def selectHaar(image,cascadeXmlPath,asMask=True,roundSelection=False):
 
     :param image: the image to select
     :param cascadeXmlPath: path to the haar cascade xml file to apply
-    :param asMask: if True, return the selections as a b&w mask.  if False, as an array of bounds tuples
-    :param roundSelection: if True, draw the feature in mask as an ellipse, otherwise as a rectangle
+    :param asMask: if True, return the selections as a b&w mask.
+        if False, as an array of bounds tuples
+    :param roundSelection: if True, draw the feature in mask as an ellipse,
+        otherwise as a rectangle
 
-    :return: b&w image where white=interesting, black=uninteresting or an (x,y,w,h) array of detected features
+    :return: b&w image where white=interesting, black=uninteresting
+        or an (x,y,w,h) array of detected features
 
     see also:
         https://docs.opencv.org/trunk/d7/d8b/tutorial_py_face_detection.html
@@ -47,8 +50,10 @@ def selectHaar(image,cascadeXmlPath,asMask=True,roundSelection=False):
     try:
         items=haar.detectMultiScale(image,1.3,5)
     except cv2.error as e:
-        if str(e).find("!empty() in function 'cv::CascadeClassifier::detectMultiScale")>=0:
-            raise Exception('ERR: xml cascade filter not found "'+cascadeXmlPath+'"')
+        searchStr="!empty() in function 'cv::CascadeClassifier::detectMultiScale"
+        if str(e).find(searchStr)>=0:
+            msg=f'XML cascade filter not found "{cascadeXmlPath}"'
+            raise Exception(msg) from e
         raise e
     if not asMask:
         return items
@@ -60,11 +65,17 @@ def selectEyes(image,asMask=True):
     Find eyes in an image.
 
     :param image: the image to select
-    :param asMask: if True, return the selections as a b&w mask.  if False, as an array of bounds tuples
+    :param asMask: if True, return the selections as a b&w mask.
+        if False, as an array of bounds tuples
 
-    :return: b&w image where white=interesting, black=uninteresting or an (x,y,w,h) array of detected features
+    :return: b&w image where white=interesting, black=uninteresting
+        or an (x,y,w,h) array of detected features
     """
-    basedir=os.path.abspath(__file__).rsplit(os.sep,2)[0]+os.sep+'cv_data'+os.sep+'haarcascades'+os.sep
+    basedir=os.sep.join((
+        os.path.abspath(__file__).rsplit(os.sep,2)[0],
+        'cv_data',
+        'haarcascades',
+        ''))
     eye_detector=basedir+'haarcascade_eye.xml'
     return selectHaar(image,eye_detector,asMask,roundSelection=True)
 
@@ -99,11 +110,17 @@ def selectFaces(image,asMask=True):
     Find human faces in an image.
 
     :param image: the image to select
-    :param asMask: if True, return the selections as a b&w mask.  if False, as an array of bounds tuples
+    :param asMask: if True, return the selections as a b&w mask.
+        if False, as an array of bounds tuples
 
-    :return: b&w image where white=interesting, black=uninteresting or an (x,y,w,h) array of detected features
+    :return: b&w image where white=interesting, black=uninteresting
+        or an (x,y,w,h) array of detected features
     """
-    basedir=os.path.abspath(__file__).rsplit(os.sep,2)[0]+os.sep+'cv_data'+os.sep+'haarcascades'+os.sep
+    basedir=os.sep.join((
+        os.path.abspath(__file__).rsplit(os.sep,2)[0],
+        'cv_data',
+        'haarcascades',
+        ''))
     face_detector=basedir+'haarcascade_frontalface_default.xml'
     return selectHaar(image,face_detector,asMask,round=True)
 
@@ -120,7 +137,11 @@ def selectHair(image):
         return None
     outImage=Image.new('L',image.size,0)
     draw=ImageDraw.Draw(outImage)
-    basedir=os.path.abspath(__file__).rsplit(os.sep,1)[0]+os.sep+'cv_data'+os.sep+'haarcascades'+os.sep
+    basedir=os.sep.join((
+        os.path.abspath(__file__).rsplit(os.sep,1)[0],
+        'cv_data',
+        'haarcascades',
+        ''))
     return outImage
 
 
@@ -136,7 +157,11 @@ def selectBackground(image):
         return None
     outImage=Image.new('L',image.size,0)
     draw=ImageDraw.Draw(outImage)
-    basedir=os.path.abspath(__file__).rsplit(os.sep,1)[0]+os.sep+'cv_data'+os.sep+'haarcascades'+os.sep
+    basedir=os.sep.join((
+        os.path.abspath(__file__).rsplit(os.sep,1)[0],
+        'cv_data',
+        'haarcascades',
+        ''))
     return outImage
 
 

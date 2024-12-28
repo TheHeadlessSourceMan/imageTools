@@ -6,12 +6,13 @@ Contains mathematical morphology routines (dilate, erode, etc)
 See also:
     https://en.wikipedia.org/wiki/Mathematical_morphology
 """
-import scipy
-from .imageRepr import *
+import typing
+import scipy # type: ignore
+from .imageRepr import numpyArray,Image
 from .helper_routines import applyFunctionToPatch
 
 
-def erode(img,size=3)->Image:
+def erode(img,size:int=3)->Image:
     """
     implement image erosion
 
@@ -24,15 +25,16 @@ def erode(img,size=3)->Image:
     return Image.fromarray(img.astype('uint8'),img.mode)
 
 
-def dilate(img,size=3):
+def dilate(img,size:int=3)->Image:
     """
     implement image dilation
     """
     img=numpyArray(img)
-    return scipy.ndimage.grey_dilation(img,size=(size,size))
+    img=scipy.ndimage.grey_dilation(img,size=(size,size))
+    return Image.fromarray(img)
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
@@ -56,7 +58,9 @@ def cmdline(args):
         print('  morphology.py [options]')
         print('Options:')
         print('   NONE')
-        
+        return -1
+    return 0
+
 
 if __name__=='__main__':
     import sys

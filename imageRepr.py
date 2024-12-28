@@ -1,7 +1,11 @@
 #!/usr/bin/env
 # -*- coding: utf-8 -*-
 """
-This allows easy conversion between pil images, numpy arrays, and filenames, int/float
+This allows easy conversion between
+    pil images
+    numpy arrays
+    filenames
+    int/float
 all of different numbers of color channels
 """
 import typing
@@ -9,7 +13,7 @@ import os
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
@@ -50,7 +54,8 @@ def defaultLoader(f:typing.Union[str,typing.IO])->Image.Image:
             import urllib.error
             import urllib.parse
             import io
-            headers={'User-Agent':'Mozilla 5.10'} # some servers only like "real browsers"
+            # some servers only like "real browsers"
+            headers={'User-Agent':'Mozilla 5.10'}
             request=urllib.request.Request(f,None,headers)
             response=urllib.request.urlopen(request)
             f=io.StringIO(response.read().decode('utf-8'))
@@ -65,8 +70,8 @@ def numpyArray(img,floatingPoint:bool=True,loader=None)->np.ndarray:
 
     :param img: can be a pil image, a numpy array, or anything loader can load
     :param floatingPoint: return a float array vs return a byte array
-    :param loader: return a tool used to load images from strings.  if None, use
-        defaultLoader() in this file
+    :param loader: return a tool used to load images from strings.
+        if None, use defaultLoader() in this file
     """
     if isinstance(img,str) or hasattr(img,'read'):
         if loader is None:
@@ -115,7 +120,8 @@ def pilImage(img,loader=None)->Image:
 
 def imageMode(img)->str:
     """
-    :param img: can either one be a textual image mode, numpy array, or an image
+    :param img: can be:
+      a textual image mode, numpy array, or an image
 
     :return bool:
     """
@@ -131,7 +137,8 @@ def imageMode(img)->str:
 
 def isFloat(img)->bool:
     """
-    Decide whether image pixels or an individual color is floating point or byte
+    Decide whether image pixels or an individual color
+    is floating point or byte
 
     :param img: can either one be a numpy array, or an image
 
@@ -160,7 +167,7 @@ def hasAlpha(mode)->bool:
     """
     determine if an image mode is has an alpha channel
 
-    :param mode: can either one be a textual image mode, numpy array, or an image
+    :param mode: can either a textual image mode, numpy array, or an image
     :return bool:
     """
     if not isinstance(mode,str):
@@ -173,7 +180,8 @@ def getAlpha(image,alwaysCreate:bool=True):
     gets the alpha channel regardless of image type
 
     :param image: the image whose mask to get
-    :param alwaysCreate: always returns a numpy array (otherwise, may return None)
+    :param alwaysCreate: always returns a numpy array
+        (otherwise, may return None)
 
     :return: alpha channel as a PIL image, or numpy array,
         or possibly None, depending on alwaysCreate
@@ -207,15 +215,18 @@ def setAlpha(image,alpha):
     NOTE: if alpha channel exists, will be darkened such that
         a hole in either mask results in a hole
 
-    IMPORTANT: the image bits may be altered.  To prevent this, set image.immutable=True
+    IMPORTANT: the image bits may be altered.  To prevent this,
+        set image.immutable=True
     """
     if image is None or alpha is None:
         return image
-    if isinstance(image,Image.Image): # make sure not to smash any bits we're keeping
+    if isinstance(image,Image.Image):
+        # make sure not to smash any bits we're keeping
         if hasattr(image,'immutable') and image.immutable:
             image=image.copy()
     if imageMode(alpha)!='L':
-        alpha=getAlpha(alpha,alwaysCreate=False) # make sure we have a grayscale to combine
+        # make sure we have a grayscale to combine
+        alpha=getAlpha(alpha,alwaysCreate=False)
         if alpha is None:
             return image
     image,alpha=resizing.makeSameSize(image,alpha,(0,0,0,0))
@@ -239,7 +250,7 @@ def isColor(mode)->bool:
     """
     determine if an image mode is color (or grayscale)
 
-    :param mode: can either one be a textual image mode, numpy array, or an image
+    :param mode: can either be a textual image mode, numpy array, or an image
     :return bool:
     """
     if not isinstance(mode,str):
@@ -251,8 +262,8 @@ def maxMode(mode1,mode2='L',requireAlpha=False):
     """
     Finds the maximum color mode.
 
-    :param mode1: can either one be a textual image mode, numpy array, or an image
-    :param mode2: can either one be a textual image mode, numpy array, or an image
+    :param mode1: can either be a textual image mode, numpy array, or an image
+    :param mode2: can either be a textual image mode, numpy array, or an image
     :param requireAlpha: stipulate that the result must have an alpha channel
 
     :return mode: best image mode
@@ -273,7 +284,7 @@ def changeMode(img,mode):
     curmode=imageMode(img)
     if curmode!=mode:
         if isinstance(img,np.ndarray):
-            # TODO: this would be faster to do in array-land, but I'm too lazy to
+            # TODO: this would be faster to do in array-land, but I'm too lazy
             #\tmess with the if/then spaghetti required for that.
             img=pilImage(img)
             img=img.convert(mode)

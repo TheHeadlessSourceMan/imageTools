@@ -8,18 +8,19 @@ See also:
 """
 import math
 from collections import namedtuple
+
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-import scipy
-from .imageRepr import *
-from .colorSpaces import *
-from .resizing import *
+import scipy # type: ignore
+from imageRepr import numpyArray
 from .helper_routines import clampImage
+from .colorSpaces import grayscale,changeMode,imageMode
+from .resizing import getSize,crop
 
 
 Pin=namedtuple('Pin','fromLocation toLocation fromRadius toRadius strength')
@@ -37,7 +38,8 @@ def morph(img,pins):
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html#scipy-ndimage-map-coordinates
 
     :param img: can be a pil image, numpy array, etc
-    :param pins: [(fromLocation,toLocation,fromRadius=1,toRadius=fromRadius,strength=1.0)]
+    :param pins: [(
+        fromLocation,toLocation,fromRadius=1,toRadius=fromRadius,strength=1.0)]
     """
     for pin in pins:
         raise NotADirectoryError()
@@ -61,16 +63,17 @@ def pinchPull(img,amount,location=None,radius=None):
     :param radius: how large the transform (default=center to any corner)
     """
     if location is None:
-        location=(image.width/2,image.height/2)
+        location=(img.width/2,img.height/2)
     if radius is None:
-        radius=math.sqrt((image.width/2)^2+(image.height/2)^2)
+        radius=math.sqrt((img.width/2)^2+(img.height/2)^2)
     pins=[(location,location,radius,radius*amount)]
     return morph(img,pins)
 
 def bruteDisplaceImage(img,displacementMap,distance=10,angle=45):
     """
     this version is much faster even with stupid loops, but the problem
-    is it leads to pixelization because it's simply moving from point a to point b
+    is it leads to pixelization because it's simply moving from
+    point a to point b
     """
     angle=math.radians(angle)
     sa=math.sin(angle)
@@ -87,16 +90,23 @@ def bruteDisplaceImage(img,displacementMap,distance=10,angle=45):
     for x in range(min(img.shape[0],displacementMap.shape[0])):
         for y in range(min(img.shape[1],displacementMap.shape[1])):
             delta=displacementMap[x,y]*distance
-            bg[int(round(x+delta*sa-maxDisp)),int(round(y-delta*ca-maxDisp))]=img[x,y]
+            bg[
+                int(round(x+delta*sa-maxDisp)),
+                int(round(y-delta*ca-maxDisp))]=img[x,y]
     return bg
 
-def displaceImage(img,displacementMap,distance=10,angle=45):
+def displaceImage(
+    img,
+    displacementMap,
+    distance:float=10,
+    angle:float=45):
     """
 
-    NOTE: If displacementMap is not grayscale, convert it using the default (BT.709)
+    NOTE: If displacementMap is not grayscale, convert it
+        using the default (BT.709)
 
-    NOTE: If displacementMap is smaller than img, then everthing out of bounds
-    is not displaced!
+    NOTE: If displacementMap is smaller than img, then everthing
+        out of bounds is not displaced!
     """
     angle=math.radians(angle)
     img=numpyArray(img)
@@ -108,19 +118,28 @@ def displaceImage(img,displacementMap,distance=10,angle=45):
         displacementMap=grayscale(displacementMap)
     def dissp(point):
         """
-        Called for each point in the array.  Returns a same shaped tuple where it should go.
+        Called for each point in the array.  Returns a same shaped tuple
+        where it should go.
         """
-        if point[0]<displacementMap.shape[0] and point[1]<displacementMap.shape[1]:
+        if point[0]<displacementMap.shape[0] \
+            and point[1]<displacementMap.shape[1]:
+            #
             delta=displacementMap[point[0],point[1]]*distance
             if len(point)>2: # array is (w,h,rgb)
-                point=(point[0]+delta*sa-maxDisp,point[1]-delta*ca-maxDisp,point[2])
+                point=(
+                    point[0]+delta*sa-maxDisp,
+                    point[1]-delta*ca-maxDisp,
+                    point[2])
             else: # array is (w,h) -- aka grayscale
-                point=(point[0]+delta*sa-maxDisp,point[1]-delta*ca-maxDisp)
+                point=(
+                    point[0]+delta*sa-maxDisp,
+                    point[1]-delta*ca-maxDisp)
         return point
     #bg=np.zeros((img.shape[0],img.shape[1],3))
     bg=np.copy(img)
     # TODO: for some reason this only works with order<3
-    img=scipy.ndimage.geometric_transform(img,dissp,order=2,output=bg,mode="nearest")
+    img=scipy.ndimage.geometric_transform(
+        img,dissp,order=2,output=bg,mode="nearest")
     return clampImage(img)
 
 

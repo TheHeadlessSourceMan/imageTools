@@ -7,19 +7,19 @@ import math
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-import scipy.ndimage
-from .helper_routines import *
-from .imageRepr import *
-from .colors import *
-from .resizing import *
-from .colorSpaces import *
+import scipy.ndimage # type: ignore
+from .helper_routines import normalize
+from .imageRepr import numpyArray
+from .colors import strToColor
+from .resizing import crop
+from .colorSpaces import grayscale
 
 
-def normalMapFromImage(img,zPower=0.33):
+def normalMapFromImage(img,zPower:float=0.33):
     """
     Attempt to get a normal map from an image using edge detection.
 
@@ -27,12 +27,13 @@ def normalMapFromImage(img,zPower=0.33):
     :param zPower: percent of z estimation to allow (keep it low because this
         is always a total guess)
 
-    NOTE: This is a common approach, but it is only an approximation, not actual
-        height data. It will only give you something that may or may not look 3d.
-        The real way to do this is to directly measure the height data directly
-        using something like a kinect or 3d digitizer. An acceptable alternative
-        is a multi-angle photo stitcher such as 123D Catch. In fact, if all you
-        have is a 2d image, something like AwesomeBump would be more versitile.
+    NOTE: This is a common approach, but it is only an approximation, not
+        actual height data. It will only give you something that may or may
+        not look 3d. The real way to do this is to directly measure the height
+        data directly using something like a kinect or 3d digitizer. An
+        acceptable alternative is a multi-angle photo stitcher such as
+        123D Catch. In fact, if all you have is a 2d image, something like
+        AwesomeBump would be more versitile.
             https://github.com/kmkolasinski/AwesomeBump
 
     See also:
@@ -42,11 +43,15 @@ def normalMapFromImage(img,zPower=0.33):
     x=scipy.ndimage.sobel(img,1)
     y=scipy.ndimage.sobel(img,0)
     mag=np.hypot(x,y)
-    z=normalize(scipy.ndimage.distance_transform_edt(mag))*zPower+(0.5-zPower/2)
+    z=normalize(scipy.ndimage.distance_transform_edt(mag))*\
+        zPower+(0.5-zPower/2)
     return np.dstack((x,y,z))
 
 
-def directionToNormalColor(azimuth,elevation):
+def directionToNormalColor(
+    azimuth:float,
+    elevation:float
+    )->np.ndarray:
     """
     given a direction, convert it into an RGB normal color
 
@@ -55,15 +60,27 @@ def directionToNormalColor(azimuth,elevation):
     """
     azimuth=math.radians(float(azimuth))
     elevation=math.radians(float(elevation))
-    return (np.array([math.sin(azimuth),math.cos(azimuth),math.cos(elevation)])+1)/2
+    return (
+        np.array([
+            math.sin(azimuth),
+            math.cos(azimuth),
+            math.cos(elevation)
+            ])+1
+        )/2
 
 
-def applyDirectionalLight(img,normalmap=None,lightAzimuth=45,lightElevation=45,lightColor=None):
+def applyDirectionalLight(
+    img,
+    normalmap=None,
+    lightAzimuth:float=45,
+    lightElevation:float=45,
+    lightColor=None):
     """
     Add a directional light to the image.
 
     :param img: the image to light
-    :param normalmap: a normal map to define its shape (if None, use normalMapFromImage(img))
+    :param normalmap: a normal map to define its shape
+        (if None, use normalMapFromImage(img))
     :param lightAzimuth: compass direction of the light source
     :param lightElevation: up/down direction of the light source
     :param lightColor: color of the light source (if None, use white)
@@ -136,6 +153,8 @@ def cmdline(args):
     if not args:
         printhelp=True
     else:
+        from imageRepr import pilImage
+        from helper_routines import preview,clampImage
         img=None
         norm=None
         bump=None

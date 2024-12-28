@@ -3,15 +3,18 @@
 """
 Defines color gradients and gives the ability to apply them.
 """
+import typing
+
+from colorCorrect import perPixel
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-from .colors import *
-from .imageRepr import *
+from .colors import strToColor,matchColorToImage
+from .imageRepr import isFloat
 from .colorSpaces import grayscale
 
 
@@ -30,15 +33,18 @@ GRADIENT_RAINBOW=[
 def colormap(img,colors=None):
     """
     apply the colors to a grayscale image
-    if a color image is provided, convert it (thus, acts like a "colorize" function)
+    if a color image is provided, convert it
+        (thus, acts like a "colorize" function)
 
     :param img:  a grayscale image
     :param colors:  [(decimalPercent,color),(...)]
         if no colors are given, then [(0.0,black),(1.0,white)]
-        if a single color and no percent is given, assume [(0.0,black),(0.5,theColor),(1.0,white)]
+        if a single color and no percent is given, assume 
+            [(0.0,black),(0.5,theColor),(1.0,white)]
 
     :return: the resulting image
     """
+    algorithm=1 # TODO: probably choose one and stick with it
     img=grayscale(img)
     if not isFloat(img):
         img=img/255.0
@@ -65,12 +71,14 @@ def colormap(img,colors=None):
     else:
         colors.sort() # make sure we go from low to high
     # make sure colors are in the shape we need
-    colors=[[matchColorToImage(color[0],img),np.array(strToColor(color[1]))] for color in colors]
-    shape=(img.shape[0],img.shape[1],len(color[1]))
+    colors=[
+        [matchColorToImage(color[0],img),np.array(strToColor(color[1]))]
+        for color in colors]
+    shape=(img.shape[0],img.shape[1],len(colors[1]))
     img2=np.ndarray(shape)
     img=img[...,None]
-    if True:
-        lastColor=None
+    if algorithm==1:
+        lastColor:typing.Optional[typing.List[float]]=None
         for color in colors:
             if lastColor is None:
                 img2+=color[1]
@@ -83,7 +91,7 @@ def colormap(img,colors=None):
         img2=np.where(img>lastColor[0],lastColor[1],img2)
     else:
         def gradMap(c):
-            lastColor=None
+            lastColor:typing.Optional[typing.List[float]]=None
             for color in colors:
                 if c<color[0]:
                     if lastColor is None:
@@ -96,7 +104,7 @@ def colormap(img,colors=None):
     return img2
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
@@ -120,6 +128,8 @@ def cmdline(args):
         print('  gradients.py [options]')
         print('Options:')
         print('   NONE')
+        return -1
+    return 0
 
 
 if __name__=='__main__':

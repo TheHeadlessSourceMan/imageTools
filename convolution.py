@@ -3,17 +3,19 @@
 """
 Contains routines to convolve an image
 """
+import typing
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
-import scipy
+import scipy # type: ignore
 from scipy import ndimage
-from .imageRepr import *
-from .resizing import *
+
+from helper_routines import highlights
+from .imageRepr import numpyArray
 
 
 CONVOLVE_MATTRICES={
@@ -100,7 +102,12 @@ def streak(img,size=15):
     return img+directionalBlur(highlights(img,.95),size)
 
 
-def convolve(img,matrix,add:float=0,divide:float=1,edge:str='clamp'):
+def convolve(
+    img,
+    matrix,
+    add:float=0,
+    divide:float=1,
+    edge:str='clamp'):
     """
     run a given convolution matrix
 
@@ -111,7 +118,9 @@ def convolve(img,matrix,add:float=0,divide:float=1,edge:str='clamp'):
             matrix=''.join(matrix.split())
             if matrix.startswith('[['):
                 matrix=matrix[1:-1]
-            matrix=[[float(col) for col in row.split(',')] for row in matrix[1:-1].replace('],','').split('[')]
+            matrix=[
+                [float(col) for col in row.split(',')]
+                for row in matrix[1:-1].replace('],','').split('[')]
         else:
             matrix=CONVOLVE_MATTRICES[matrix]
     size=len(matrix)
@@ -130,7 +139,7 @@ def convolve(img,matrix,add:float=0,divide:float=1,edge:str='clamp'):
     return img
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
@@ -140,6 +149,7 @@ def cmdline(args):
     if not args:
         printhelp=True
     else:
+        from .imageRepr import pilImage
         img=None
         for arg in args:
             if arg.startswith('-'):
@@ -150,11 +160,11 @@ def cmdline(args):
                     pilImage(img).save(arg[1])
                 elif arg[0]=='--show':
                     pilImage(img).show()
-                elif  arg[0]=='--convolve':
+                elif arg[0]=='--convolve':
                     img=convolve(img,arg[1])
-                elif  arg[0]=='--circularBlur':
+                elif arg[0]=='--circularBlur':
                     img=circularBlur(img)
-                elif  arg[0]=='--zoomBlur':
+                elif arg[0]=='--zoomBlur':
                     img=zoomBlur(img)
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
@@ -164,14 +174,17 @@ def cmdline(args):
         print('Usage:')
         print('  convolution.py image.jpg [options]')
         print('Options:')
-        print('   --convolve=matrix ......... matrix can be a name or a matrix of numbers')
-        print('   --circularBlur=amount ..... blur around circular center point')
-        print('   --zoomBlur=amount ......... blur outward from a circular center point')
+        print('   --convolve=matrix ..... matrix can be a name or a matrix')
+        print('                           of numbers')
+        print('   --circularBlur=amount . blur around circular center point')
+        print('   --zoomBlur=amount ..... blur outward from a circular')
+        print('                           center point')
         print('   --save=filename ....... save the current image')
         print('   --show ................ show the current image')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
     cmdline(sys.argv[1:])
-

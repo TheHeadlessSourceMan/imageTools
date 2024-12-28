@@ -6,16 +6,26 @@ This automatically detects regions of interest in an image.
 try:
     # first try to use bohrium, since it could help us accelerate
     # https://bohrium.readthedocs.io/users/python/
-    import bohrium as np
+    import bohrium as np # type: ignore
 except ImportError:
     # if not, plain old numpy is good enough
     import numpy as np
+try:
+    import opencv # type: ignore # pylint: disable=unused-import
+    has_opencv=True
+except ImportError:
+    has_opencv=False
 import scipy
-from .featureFinder import *
-from .colorSpaces import *
-from .helper_routines import *
-from . import imageRepr
-from . import resizing
+
+from featureFinder import (
+    selectSkin,selectEyes,selectFaces,selectBackground,selectHair)
+from helper_routines import normalize
+from colorSpaces import getChannel,grayscale
+import imageRepr
+#from .featureFinder import *
+#from .colorSpaces import *
+#from .helper_routines import *
+#from . import resizing
 
 
 def selectHighContrast(image):
@@ -65,7 +75,8 @@ def interest(image):
         print('WARN: Attempting auto-detection of regions of interest.')
         print('\t  This works A LOT better with OpenCV installed.')
         print('\t  try: pip install opencv-contrib-python')
-        print('\t  or go here: https://sourceforge.net/projects/opencvlibrary/files/')
+        print('\t  or go here:')
+        print('\t    https://sourceforge.net/projects/opencvlibrary/files/')
         program=[
             (0.5,selectSkin),
             (0.1,selectHighContrast),
@@ -104,7 +115,7 @@ def cmdline(args):
 
     :param args: command line arguments (WITHOUT the filename)
     """
-    from . import helper_routines
+    from helper_routines import preview
     printhelp=False
     if not args:
         printhelp=True
@@ -134,7 +145,7 @@ def cmdline(args):
                 elif arg[0]=='--selectSobel':
                     image=normalize(selectSobel(image))
                 elif arg[0]=='--show':
-                    helper_routines.preview(image)
+                    preview(image)
                 elif arg[0]=='--save':
                     if len(arg)>1:
                         imageRepr.pilImg(image).save(arg[1])
@@ -146,15 +157,16 @@ def cmdline(args):
         print('Usage:')
         print('  autoInterest.py image.jpg [options]')
         print('Options:')
-        print('   --selectFaces ........... determine human faces in an image')
-        print('   --selectEyes ............ determine eyes in an image')
-        print('   --selectBackground ...... determine the background of an image')
-        print('   --selectHair ............ determine hair in an image')
-        print('   --selectSkin ............ determine human skin in an image')
-        print('   --selectHighContrast .... determine very bright or very dark areas of an image')
-        print('   --selectHighSaturation .. determine vibrant colors in an image')
-        print('   --selectSobel ........... determine edge strength in an image')
-        print('   --interest .............. determine region of interest for an image')
+        print('   --selectFaces ........... select human faces in an image')
+        print('   --selectEyes ............ select eyes in an image')
+        print('   --selectBackground ...... select the background of an image')
+        print('   --selectHair ............ select hair in an image')
+        print('   --selectSkin ............ select human skin in an image')
+        print('   --selectHighContrast .... select very bright or very dark')
+        print('                             areas of an image')
+        print('   --selectHighSaturation .. select vibrant colors in an image')
+        print('   --selectSobel ........... select edge strength in an image')
+        print('   --interest .............. region of interest for an image')
         print('   --show .................. show the working image')
         print('   --save=filename ......... save the working image')
 
@@ -162,4 +174,3 @@ def cmdline(args):
 if __name__=='__main__':
     import sys
     cmdline(sys.argv[1:])
-
